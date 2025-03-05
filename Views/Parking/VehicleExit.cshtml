@@ -1,0 +1,97 @@
+@{
+    ViewData["Title"] = "Vehicle Exit";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Vehicle Exit Form</h6>
+                </div>
+                <div class="card-body">
+                    <form id="vehicleExitForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="vehicleNumber" class="form-label">Vehicle Number</label>
+                                    <input type="text" class="form-control" id="vehicleNumber" required>
+                                    <button type="button" class="btn btn-info mt-2">Search Vehicle</button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Parking Details</h6>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <p class="mb-1">Entry Time:</p>
+                                                <p class="mb-1">Duration:</p>
+                                                <p class="mb-1">Rate:</p>
+                                                <p class="mb-1">Total Amount:</p>
+                                            </div>
+                                            <div class="col-6">
+                                                <p class="mb-1 font-weight-bold" id="entryTime">--:--</p>
+                                                <p class="mb-1 font-weight-bold" id="duration">-- hrs -- mins</p>
+                                                <p class="mb-1 font-weight-bold" id="rate">$--/hr</p>
+                                                <p class="mb-1 font-weight-bold" id="totalAmount">$--</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">Process Exit</button>
+                                <button type="reset" class="btn btn-secondary">Clear</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Exits Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Exits</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>Exit Time</th>
+                                    <th>Vehicle Number</th>
+                                    <th>Duration</th>
+                                    <th>Amount Paid</th>
+                                    <th>Payment Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var exit in ViewBag.RecentExits ?? new List<object>())
+                                {
+                                    <tr>
+                                        <td>@exit.ExitTime.ToString("MM/dd/yyyy hh:mm tt")</td>
+                                        <td>@exit.VehicleNumber</td>
+                                        <td>@exit.Duration</td>
+                                        <td>$@exit.Amount.ToString("F2")</td>
+                                        <td><span class="badge badge-@(exit.Status == "Paid" ? "success" : "warning")">@exit.Status</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/vehicleExit.js"></script>
+}
