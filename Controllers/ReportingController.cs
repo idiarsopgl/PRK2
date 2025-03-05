@@ -75,8 +75,9 @@ namespace Geex.Controllers
             var vehicleStats = await _context.ParkingTransactions
                 .Include(t => t.Vehicle)
                 .Where(t => t.EntryTime.Date >= startDate.Value.Date && 
-                           t.EntryTime.Date <= endDate.Value.Date)
-                .GroupBy(t => t.Vehicle.VehicleType)
+                           t.EntryTime.Date <= endDate.Value.Date &&
+                           t.Vehicle != null)
+                .GroupBy(t => t.Vehicle != null ? t.Vehicle.VehicleType ?? "Unknown" : "Unknown")
                 .Select(g => new
                 {
                     VehicleType = g.Key,

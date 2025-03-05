@@ -77,19 +77,38 @@ namespace Geex.Controllers
                 .SumAsync(t => t.TotalAmount);
 
             var recentActivity = await _context.ParkingTransactions
-                .Include(t => t.Vehicle)
+                .Where(t => t.Vehicle != null)
                 .OrderByDescending(t => t.EntryTime)
                 .Take(10)
                 .Select(t => new ParkingActivity
                 {
-                    VehicleType = t.Vehicle.VehicleType,
-                    LicensePlate = t.Vehicle.VehicleNumber,
+                    VehicleType = t.Vehicle != null ? t.Vehicle.VehicleType : "Unknown",
+                    LicensePlate = t.Vehicle != null ? t.Vehicle.VehicleNumber : "Unknown",
                     Timestamp = t.EntryTime,
                     ActionType = t.ExitTime.HasValue ? "Exit" : "Entry",
                     Fee = t.TotalAmount,
-                    ParkingType = t.Vehicle.AssignedSpace.SpaceType
+                    ParkingType = "Unknown"  // We'll set this later
                 })
                 .ToListAsync();
+
+            // Load vehicle details and update parking type if needed
+            foreach(var activity in recentActivity)
+            {
+                if (activity is ParkingActivity pa)
+                {
+                    var transaction = await _context.ParkingTransactions
+                        .Include(t => t.Vehicle)
+                        .ThenInclude(v => v != null ? v.AssignedSpace : null)
+                        .FirstOrDefaultAsync(t => t.Vehicle != null && 
+                                               t.Vehicle.VehicleNumber == pa.LicensePlate && 
+                                               t.EntryTime == pa.Timestamp);
+                    
+                    if (transaction?.Vehicle?.AssignedSpace != null)
+                    {
+                        pa.ParkingType = transaction.Vehicle.AssignedSpace.SpaceType;
+                    }
+                }
+            }
 
             var hourlyData = await _context.ParkingTransactions
                 .Where(t => t.EntryTime.Date == today)
@@ -223,22 +242,24 @@ namespace Geex.Controllers
 
         private async Task<List<object>> GetRecentParkingActivity()
         {
-            return await _context.ParkingTransactions
-                .Include(t => t.Vehicle)
+            var activities = await _context.ParkingTransactions
+                .Where(t => t.Vehicle != null)
                 .OrderByDescending(t => t.EntryTime)
                 .Take(10)
                 .Select(t => new ParkingActivityViewModel
                 {
-                    VehicleNumber = t.Vehicle.VehicleNumber,
+                    VehicleNumber = t.Vehicle != null ? t.Vehicle.VehicleNumber : "Unknown",
                     EntryTime = t.EntryTime,
                     ExitTime = t.ExitTime,
                     Duration = t.ExitTime.HasValue ? 
                         (t.ExitTime.Value - t.EntryTime).TotalHours.ToString("F1") + " hours" : 
                         "In Progress",
                     Amount = t.TotalAmount,
-                    Status = t.PaymentStatus
+                    Status = t.ExitTime.HasValue ? "Completed" : "In Progress"
                 })
-                .ToListAsync<object>();
+                .ToListAsync();
+                
+            return activities.Cast<object>().ToList();
         }
 
         public IActionResult VehicleExit()
@@ -276,7 +297,10 @@ namespace Geex.Controllers
                 // Update vehicle and parking space
                 vehicle.IsParked = false;
                 vehicle.ExitTime = DateTime.Now;
-                vehicle.AssignedSpace.IsOccupied = false;
+                if (vehicle.AssignedSpace != null)
+                {
+                    vehicle.AssignedSpace.IsOccupied = false;
+                }
                 _context.Vehicles.Update(vehicle);
 
                 await _context.SaveChangesAsync();
