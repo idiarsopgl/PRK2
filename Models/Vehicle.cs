@@ -1,22 +1,29 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace ParkIRC.Models
 {
     public class Vehicle
     {
         public int Id { get; set; }
-        public required string VehicleNumber { get; set; }
-        public required string VehicleType { get; set; }
-        public required string DriverName { get; set; }
-        public string? ContactNumber { get; set; }
+        
+        [Required]
+        public string VehicleNumber { get; set; }
+        
+        [Required]
+        public string VehicleType { get; set; }
+        
+        public string DriverName { get; set; } = string.Empty;
+        public string ContactNumber { get; set; } = string.Empty;
+        
         public DateTime EntryTime { get; set; }
         public DateTime? ExitTime { get; set; }
         public bool IsParked { get; set; }
         
-        // Navigation properties
         public int? AssignedSpaceId { get; set; }
-        public ParkingSpace? AssignedSpace { get; set; }
-        public ICollection<ParkingTransaction> Transactions { get; set; } = new List<ParkingTransaction>();
+        public virtual ParkingSpace AssignedSpace { get; set; }
+        
+        public virtual ICollection<ParkingTransaction> Transactions { get; set; }
     }
 }

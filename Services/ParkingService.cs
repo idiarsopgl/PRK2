@@ -7,13 +7,6 @@ using ParkIRC.Models;
 
 namespace ParkIRC.Services
 {
-    public interface IParkingService
-    {
-        Task<ParkingSpace> AssignParkingSpaceAsync(Vehicle vehicle);
-        Task<ParkingTransaction> ProcessExitAsync(string vehicleNumber, string paymentMethod);
-        Task<bool> ResetPasswordAsync(string email, string token, string newPassword);
-    }
-
     public class ParkingService : IParkingService
     {
         private readonly ApplicationDbContext _context;
@@ -25,41 +18,7 @@ namespace ParkIRC.Services
 
         public async Task<ParkingSpace> AssignParkingSpaceAsync(Vehicle vehicle)
         {
-            // Get all available parking spaces based on vehicle type
-            var availableSpaces = await _context.ParkingSpaces
-                .Where(s => !s.IsOccupied)
-                .ToListAsync();
-
-            // Filter spaces based on vehicle type
-            var suitableSpaces = vehicle.VehicleType.ToLower() switch
-            {
-                "compact" => availableSpaces.Where(s => s.SpaceType == "Compact" || s.SpaceType == "Standard"),
-                "sedan" => availableSpaces.Where(s => s.SpaceType == "Standard"),
-                "suv" => availableSpaces.Where(s => s.SpaceType == "Standard" || s.SpaceType == "Premium"),
-                "handicap" => availableSpaces.Where(s => s.SpaceType == "Handicap"),
-                _ => availableSpaces.Where(s => s.SpaceType == "Standard")
-            };
-
-            // Get the most suitable space (prefer spaces specifically designed for the vehicle type)
-            var assignedSpace = suitableSpaces
-                .OrderBy(s => s.SpaceType != (vehicle.VehicleType == "Compact" ? "Compact" : "Standard"))
-                .ThenBy(s => s.SpaceNumber)
-                .FirstOrDefault();
-
-            if (assignedSpace == null)
-                throw new InvalidOperationException("No suitable parking spaces available.");
-
-            // Assign the space
-            assignedSpace.IsOccupied = true;
-            assignedSpace.CurrentVehicle = vehicle;
-            vehicle.AssignedSpace = assignedSpace;
-            vehicle.AssignedSpaceId = assignedSpace.Id;
-            vehicle.EntryTime = DateTime.Now;
-            vehicle.IsParked = true;
-
-            await _context.SaveChangesAsync();
-
-            return assignedSpace;
+            return await AssignParkingSpace(vehicle);
         }
 
         public async Task<ParkingTransaction> ProcessExitAsync(string vehicleNumber, string paymentMethod)
@@ -69,35 +28,58 @@ namespace ParkIRC.Services
                 .FirstOrDefaultAsync(v => v.VehicleNumber == vehicleNumber && v.IsParked);
 
             if (vehicle == null)
+            {
                 throw new InvalidOperationException("Vehicle not found or not currently parked.");
+            }
 
-            var exitTime = DateTime.Now;
+            var transaction = await ProcessCheckout(vehicle);
+            transaction.PaymentMethod = paymentMethod;
+            await _context.SaveChangesAsync();
+            return transaction;
+        }
+
+        public async Task<bool> ResetPasswordAsync(string email, string token, string newPassword)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            return user != null;
+        }
+
+        public async Task<ParkingTransaction> ProcessCheckout(Vehicle vehicle)
+        {
+            if (vehicle == null)
+            {
+                throw new ArgumentNullException(nameof(vehicle));
+            }
+
+            var exitTime = DateTime.UtcNow;
             var duration = exitTime - vehicle.EntryTime;
             var hours = Math.Ceiling(duration.TotalHours);
-            var totalAmount = hours * vehicle.AssignedSpace.HourlyRate;
+            var hourlyRate = vehicle.AssignedSpace?.HourlyRate ?? 0m;
+            decimal totalAmount = (decimal)hours * hourlyRate;
 
             var transaction = new ParkingTransaction
             {
                 VehicleId = vehicle.Id,
-                ParkingSpaceId = vehicle.AssignedSpace.Id,
+                ParkingSpaceId = vehicle.AssignedSpaceId ?? 0,
+                TransactionNumber = GenerateTransactionNumber(),
                 EntryTime = vehicle.EntryTime,
                 ExitTime = exitTime,
-                HourlyRate = vehicle.AssignedSpace.HourlyRate,
+                HourlyRate = hourlyRate,
+                Amount = totalAmount,
                 TotalAmount = totalAmount,
                 PaymentStatus = "Paid",
-                PaymentMethod = paymentMethod,
+                PaymentMethod = "Cash",
                 PaymentTime = exitTime,
-                TransactionNumber = GenerateTransactionNumber(),
                 Vehicle = vehicle,
                 ParkingSpace = vehicle.AssignedSpace
             };
 
-            // Update vehicle and space status
-            vehicle.IsParked = false;
-            vehicle.ExitTime = exitTime;
-            vehicle.AssignedSpace.IsOccupied = false;
-            vehicle.AssignedSpace.CurrentVehicle = null;
-            vehicle.AssignedSpace = null;
+            if (vehicle.AssignedSpace != null)
+            {
+                vehicle.AssignedSpace.IsOccupied = false;
+                vehicle.AssignedSpace.CurrentVehicle = null;
+                vehicle.AssignedSpace.LastOccupiedTime = exitTime;
+            }
             vehicle.AssignedSpaceId = null;
 
             _context.ParkingTransactions.Add(transaction);
@@ -106,14 +88,42 @@ namespace ParkIRC.Services
             return transaction;
         }
 
-        public async Task<bool> ResetPasswordAsync(string email, string token, string newPassword)
+        public async Task<ParkingSpace> AssignParkingSpace(Vehicle vehicle)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-            if (user == null) return false;
+            var availableSpace = await _context.ParkingSpaces
+                .FirstOrDefaultAsync(p => !p.IsOccupied);
 
-            // Note: This is a placeholder. The actual implementation should use ASP.NET Core Identity's
-            // password reset functionality. This will be implemented in the AuthController.
-            return true;
+            if (availableSpace == null)
+            {
+                throw new InvalidOperationException("No parking spaces available");
+            }
+
+            availableSpace.IsOccupied = true;
+            availableSpace.CurrentVehicle = vehicle;
+            vehicle.AssignedSpace = availableSpace;
+            vehicle.EntryTime = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return availableSpace;
+        }
+
+        public async Task<decimal> CalculateFee(Vehicle vehicle)
+        {
+            if (vehicle == null || vehicle.EntryTime == default)
+            {
+                throw new ArgumentException("Invalid vehicle or entry time");
+            }
+
+            var duration = DateTime.UtcNow - vehicle.EntryTime;
+            var hours = Math.Ceiling(duration.TotalHours);
+            var space = await _context.ParkingSpaces.FindAsync(vehicle.AssignedSpaceId);
+            
+            if (space == null)
+            {
+                throw new InvalidOperationException("Vehicle is not assigned to a parking space");
+            }
+
+            return (decimal)hours * space.HourlyRate;
         }
 
         private static string GenerateTransactionNumber()

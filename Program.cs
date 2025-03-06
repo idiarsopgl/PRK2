@@ -5,20 +5,14 @@ using ParkIRC;
 using Microsoft.Extensions.DependencyInjection;
 using ParkIRC.Hubs;
 using ParkIRC.Models;
+using ParkIRC.Services;
+using ParkIRC.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlServerOptionsAction: sqlOptions =>
-        {
-            sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(30),
-                errorNumbersToAdd: null);
-        }));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Register ParkingService
 builder.Services.AddScoped<IParkingService, ParkingService>();

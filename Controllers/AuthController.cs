@@ -217,41 +217,36 @@ namespace ParkIRC.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                var user = await _userManager.FindByEmailAsync(model.Email);
-                if (user == null || !(await _userManager.IsEmailConfirmedAsync(user)))
-                {
-                    // Don't reveal that the user does not exist or is not confirmed
-                    return RedirectToAction(nameof(ForgotPasswordConfirmation));
-                }
-
-                var code = await _userManager.GeneratePasswordResetTokenAsync(user);
-                var callbackUrl = Url.Action(
-                    "ResetPassword",
-                    "Auth",
-                    new { userId = user.Id, code },
-                    protocol: Request.Scheme);
-
-                if (callbackUrl != null)
-                {
-                    var emailBody = _emailTemplateService.GetPasswordResetTemplate(
-                        HtmlEncoder.Default.Encode(callbackUrl),
-                        user.FullName ?? "User");
-
-                    await _emailService.SendEmailAsync(
-                        model.Email,
-                        "Reset Your Password - ParkIRC",
-                        emailBody);
-
-                    _logger.LogInformation("Password reset email sent to {Email}", model.Email);
-                }
-
-                return RedirectToAction(nameof(ForgotPasswordConfirmation));
+                return View(model);
             }
-            return View(model);
+
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user == null || !(await _userManager.IsEmailConfirmedAsync(user)))
+            {
+                // Don't reveal that the user does not exist or is not confirmed
+                return View("ForgotPasswordConfirmation");
+            }
+
+            // For more information on how to enable account confirmation and password reset please
+            // visit https://go.microsoft.com/fwlink/?LinkID=532713
+            var code = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var callbackUrl = Url.Action(
+                "ResetPassword",
+                "Auth",
+                new { userId = user.Id, code = code },
+                protocol: Request.Scheme);
+
+            await _emailService.SendEmailAsync(
+                model.Email,
+                "Reset Password",
+                $"Please reset your password by clicking here: <a href='{callbackUrl}'>link</a>");
+
+            return View("ForgotPasswordConfirmation");
         }
 
         [HttpGet]

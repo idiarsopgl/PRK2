@@ -18,97 +18,135 @@ namespace ParkIRC.Controllers
             _context = context;
         }
 
-        public async Task<IActionResult> DailyRevenue(DateTime? date)
+        public async Task<IActionResult> Index(DateTime? startDate = null, DateTime? endDate = null)
         {
-            date ??= DateTime.Today;
-            var dailyTransactions = await _context.ParkingTransactions
-                .Where(t => t.PaymentTime.HasValue && t.PaymentTime.Value.Date == date.Value.Date)
-                .ToListAsync();
+            var query = _context.ParkingTransactions.AsQueryable();
 
-            var dailyRevenue = new
+            if (startDate.HasValue)
             {
-                TotalAmount = dailyTransactions.Sum(t => t.TotalAmount),
-                TransactionCount = dailyTransactions.Count,
-                Date = date.Value.Date,
-                HourlyBreakdown = dailyTransactions
-                    .GroupBy(t => t.PaymentTime?.Hour)
-                    .Select(g => new
-                    {
-                        Hour = g.Key,
-                        Amount = g.Sum(t => t.TotalAmount),
-                        Count = g.Count()
-                    })
-                    .OrderBy(x => x.Hour)
-                    .ToList()
+                query = query.Where(t => t.EntryTime >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                query = query.Where(t => t.ExitTime <= endDate.Value);
+            }
+
+            var transactions = await query.ToListAsync();
+            var report = new
+            {
+                TotalRevenue = transactions.Sum(t => t.Amount),
+                AverageOccupancy = await CalculateAverageOccupancy(startDate, endDate),
+                PeakHours = await CalculatePeakHours(startDate, endDate)
             };
 
-            return View(dailyRevenue);
+            return View(report);
         }
 
-        public async Task<IActionResult> OccupancyReport(DateTime? startDate, DateTime? endDate)
+        private async Task<double> CalculateAverageOccupancy(DateTime? startDate, DateTime? endDate)
         {
-            startDate ??= DateTime.Today.AddDays(-7);
-            endDate ??= DateTime.Today;
+            var totalSpaces = await _context.ParkingSpaces.CountAsync();
+            var occupiedSpacesCount = await _context.ParkingSpaces
+                .CountAsync(s => s.IsOccupied);
 
-            var occupancyData = await _context.ParkingTransactions
-                .Where(t => t.EntryTime.Date >= startDate.Value.Date && 
-                           (t.ExitTime == null || t.ExitTime.Value.Date <= endDate.Value.Date))
-                .GroupBy(t => t.EntryTime.Date)
-                .Select(g => new
-                {
-                    Date = g.Key,
-                    TotalVehicles = g.Count(),
-                    AverageStayDuration = g.Average(t => 
-                        ((t.ExitTime ?? DateTime.Now) - t.EntryTime).TotalHours)
-                })
-                .OrderBy(x => x.Date)
+            return (double)occupiedSpacesCount / totalSpaces * 100;
+        }
+
+        private async Task<string> CalculatePeakHours(DateTime? startDate, DateTime? endDate)
+        {
+            var transactions = await _context.ParkingTransactions
+                .Where(t => (!startDate.HasValue || t.EntryTime >= startDate.Value) &&
+                           (!endDate.HasValue || t.ExitTime <= endDate.Value))
                 .ToListAsync();
 
-            return View(occupancyData);
+            var hourlyCount = transactions
+                .GroupBy(t => t.EntryTime.Hour)
+                .Select(g => new { Hour = g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .FirstOrDefault();
+
+            return hourlyCount != null
+                ? $"{hourlyCount.Hour:D2}:00 - {hourlyCount.Hour:D2}:59"
+                : "No data available";
         }
 
-        public async Task<IActionResult> VehicleTypeStatistics(DateTime? startDate, DateTime? endDate)
+        public async Task<IActionResult> DailyRevenue(DateTime? date = null)
         {
-            startDate ??= DateTime.Today.AddDays(-30);
-            endDate ??= DateTime.Today;
+            var queryDate = date ?? DateTime.Today;
+            var nextDay = queryDate.AddDays(1);
 
-            var vehicleStats = await _context.ParkingTransactions
-                .Include(t => t.Vehicle)
-                .Where(t => t.EntryTime.Date >= startDate.Value.Date && 
-                           t.EntryTime.Date <= endDate.Value.Date &&
-                           t.Vehicle != null)
-                .GroupBy(t => t.Vehicle != null ? t.Vehicle.VehicleType ?? "Unknown" : "Unknown")
+            var transactions = await _context.ParkingTransactions
+                .Where(t => t.ExitTime >= queryDate && t.ExitTime < nextDay)
+                .ToListAsync();
+
+            var report = new
+            {
+                Date = queryDate.ToString("yyyy-MM-dd"),
+                TotalRevenue = transactions.Sum(t => t.TotalAmount),
+                TransactionCount = transactions.Count,
+                AverageAmount = transactions.Any() ? transactions.Average(t => t.TotalAmount) : 0
+            };
+
+            return View(report);
+        }
+
+        public async Task<IActionResult> OccupancyReport(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var start = startDate ?? DateTime.Today.AddDays(-7);
+            var end = endDate ?? DateTime.Today;
+
+            var dailyOccupancy = await _context.ParkingSpaces
+                .GroupBy(s => s.LastOccupiedTime.HasValue && s.LastOccupiedTime.Value.Date >= start && s.LastOccupiedTime.Value.Date <= end 
+                    ? s.LastOccupiedTime.Value.Date 
+                    : DateTime.Today)
+                .Select(g => new
+                {
+                    Date = g.Key.ToString("yyyy-MM-dd"),
+                    OccupancyRate = g.Count(s => s.IsOccupied) * 100.0 / g.Count()
+                })
+                .OrderBy(r => r.Date)
+                .ToListAsync();
+
+            return View(dailyOccupancy);
+        }
+
+        public async Task<IActionResult> VehicleTypeStatistics(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var start = startDate ?? DateTime.Today.AddDays(-30);
+            var end = endDate ?? DateTime.Today;
+
+            var vehicleTypes = await _context.Vehicles
+                .Where(v => v.EntryTime.Date >= start.Date && v.EntryTime.Date <= end.Date)
+                .GroupBy(v => v.VehicleType)
                 .Select(g => new
                 {
                     VehicleType = g.Key,
                     Count = g.Count(),
-                    TotalRevenue = g.Sum(t => t.TotalAmount),
-                    AverageStayDuration = g.Average(t => 
-                        ((t.ExitTime ?? DateTime.Now) - t.EntryTime).TotalHours)
+                    Revenue = g.Sum(v => v.Transactions.Sum(t => t.TotalAmount))
                 })
-                .OrderByDescending(x => x.Count)
                 .ToListAsync();
 
-            return View(vehicleStats);
+            return View(vehicleTypes);
         }
 
-        public async Task<IActionResult> PeakHourAnalysis(DateTime? date)
+        public async Task<IActionResult> PeakHourAnalysis(DateTime? date = null)
         {
-            date ??= DateTime.Today;
+            var queryDate = date ?? DateTime.Today;
+            var nextDay = queryDate.AddDays(1);
 
-            var peakHours = await _context.ParkingTransactions
-                .Where(t => t.EntryTime.Date == date.Value.Date)
+            var hourlyData = await _context.ParkingTransactions
+                .Where(t => t.EntryTime >= queryDate && t.EntryTime < nextDay)
                 .GroupBy(t => t.EntryTime.Hour)
                 .Select(g => new
                 {
                     Hour = g.Key,
-                    VehicleCount = g.Count(),
+                    Count = g.Count(),
                     Revenue = g.Sum(t => t.TotalAmount)
                 })
-                .OrderBy(x => x.Hour)
+                .OrderBy(h => h.Hour)
                 .ToListAsync();
 
-            return View(peakHours);
+            return View(hourlyData);
         }
     }
 }
