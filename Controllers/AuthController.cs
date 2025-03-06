@@ -7,6 +7,11 @@ using System.Security.Claims;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authorization;
+using ParkIRC.Models;
+using ParkIRC.ViewModels;
+using ParkIRC.Services;
+using System.Text.Encodings.Web;
+using System.Linq;
 
 namespace ParkIRC.Controllers
 {
@@ -17,19 +22,25 @@ namespace ParkIRC.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ILogger<AuthController> _logger;
+        private readonly IEmailService _emailService;
+        private readonly IEmailTemplateService _emailTemplateService;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
-            ILogger<AuthController> logger)
+            ILogger<AuthController> logger,
+            IEmailService emailService,
+            IEmailTemplateService emailTemplateService)
         {
-            _userManager = userManager;
-            _signInManager = signInManager;
-            _logger = logger;
+            _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
+            _signInManager = signInManager ?? throw new ArgumentNullException(nameof(signInManager));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _emailService = emailService ?? throw new ArgumentNullException(nameof(emailService));
+            _emailTemplateService = emailTemplateService ?? throw new ArgumentNullException(nameof(emailTemplateService));
         }
 
         [HttpGet]
-        public IActionResult Login(string returnUrl = null)
+        public IActionResult Login(string? returnUrl = null)
         {
             ViewData["ReturnUrl"] = returnUrl;
             return View();
@@ -37,14 +48,17 @@ namespace ParkIRC.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(LoginViewModel model, string returnUrl = null)
+        public async Task<IActionResult> Login(LoginViewModel model, string? returnUrl = null)
         {
             ViewData["ReturnUrl"] = returnUrl;
             
             if (ModelState.IsValid)
             {
                 var result = await _signInManager.PasswordSignInAsync(
-                    model.Email, model.Password, model.RememberMe, lockoutOnFailure: true);
+                    model.Email, 
+                    model.Password, 
+                    model.RememberMe, 
+                    lockoutOnFailure: true);
                 
                 if (result.Succeeded)
                 {
@@ -58,14 +72,10 @@ namespace ParkIRC.Controllers
                     ModelState.AddModelError(string.Empty, "Account locked out. Please try again later.");
                     return View(model);
                 }
-                else
-                {
-                    ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-                    return View(model);
-                }
+                
+                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
             }
             
-            // If we got this far, something failed, redisplay form
             return View(model);
         }
 
@@ -200,16 +210,102 @@ namespace ParkIRC.Controllers
             return View();
         }
 
-        private IActionResult RedirectToLocal(string returnUrl)
+        [HttpGet]
+        public IActionResult ForgotPassword()
         {
-            if (Url.IsLocalUrl(returnUrl))
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var user = await _userManager.FindByEmailAsync(model.Email);
+                if (user == null || !(await _userManager.IsEmailConfirmedAsync(user)))
+                {
+                    // Don't reveal that the user does not exist or is not confirmed
+                    return RedirectToAction(nameof(ForgotPasswordConfirmation));
+                }
+
+                var code = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var callbackUrl = Url.Action(
+                    "ResetPassword",
+                    "Auth",
+                    new { userId = user.Id, code },
+                    protocol: Request.Scheme);
+
+                if (callbackUrl != null)
+                {
+                    var emailBody = _emailTemplateService.GetPasswordResetTemplate(
+                        HtmlEncoder.Default.Encode(callbackUrl),
+                        user.FullName ?? "User");
+
+                    await _emailService.SendEmailAsync(
+                        model.Email,
+                        "Reset Your Password - ParkIRC",
+                        emailBody);
+
+                    _logger.LogInformation("Password reset email sent to {Email}", model.Email);
+                }
+
+                return RedirectToAction(nameof(ForgotPasswordConfirmation));
+            }
+            return View(model);
+        }
+
+        [HttpGet]
+        public IActionResult ResetPassword(string? code = null)
+        {
+            if (code == null)
+            {
+                return BadRequest("A code must be supplied for password reset.");
+            }
+            var model = new ResetPasswordViewModel { Code = code };
+            return View(model);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+            
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user == null)
+            {
+                // Don't reveal that the user does not exist
+                return RedirectToAction(nameof(ResetPasswordConfirmation));
+            }
+            
+            var result = await _userManager.ResetPasswordAsync(user, model.Code, model.Password);
+            if (result.Succeeded)
+            {
+                return RedirectToAction(nameof(ResetPasswordConfirmation));
+            }
+            
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(string.Empty, error.Description);
+            }
+            return View();
+        }
+
+        [HttpGet]
+        public IActionResult ResetPasswordConfirmation()
+        {
+            return View();
+        }
+
+        private IActionResult RedirectToLocal(string? returnUrl)
+        {
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
             {
                 return Redirect(returnUrl);
             }
-            else
-            {
-                return RedirectToAction("Dashboard", "Parking");
-            }
+            return RedirectToAction("Dashboard", "Parking");
         }
     }
 

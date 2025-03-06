@@ -10,7 +10,22 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseInMemoryDatabase("GeexParkingDb"));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlServerOptionsAction: sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+        }));
+
+// Register ParkingService
+builder.Services.AddScoped<IParkingService, ParkingService>();
+
+// Register EmailService and EmailTemplateService
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
     // Password settings
@@ -196,6 +211,9 @@ else
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+// Add rate limiting middleware
+app.UseMiddleware<RateLimitingMiddleware>();
 
 // Add response caching middleware
 app.UseResponseCaching();

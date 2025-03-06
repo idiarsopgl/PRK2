@@ -1,53 +1,90 @@
-# Parking Management System
+# ParkIRC - Parking Management System
 
-A modern parking management system built with ASP.NET Core that allows for efficient management of parking spaces, vehicle entry and exit tracking, payment processing, and reporting.
+A modern parking management system built with ASP.NET Core that helps manage parking spaces, vehicle entries/exits, and payments.
 
 ## Features
 
-- **Real-time Dashboard**: View current parking space occupancy and recent parking activities
-- **Vehicle Management**: Track vehicle entry and exit, assign parking spaces
-- **Payment Processing**: Calculate fees based on parking duration and process payments
-- **Reporting**: Generate reports on occupancy rates, revenue, and parking patterns
-- **User Authentication**: Secure access to management features
+- User Authentication & Authorization
+  - Role-based access control (Admin, Staff)
+  - Secure password reset functionality
+  - User profile management
 
-## Technical Details
+- Parking Management
+  - Automatic space assignment
+  - Vehicle entry/exit tracking
+  - Real-time space availability
+  - Payment processing
+  - Transaction history
 
-- Built with ASP.NET Core 8.0
-- Uses Entity Framework Core for data access
-- In-memory database for development and testing
+- Dashboard
+  - Real-time occupancy status
+  - Revenue statistics
+  - Recent activities
+  - Space utilization metrics
+
+## Technology Stack
+
+- ASP.NET Core 9.0
+- Entity Framework Core
+- SQL Server
+- Identity Framework
 - SignalR for real-time updates
-- MVC architecture with Razor views
+- Bootstrap 5 for UI
+
+## Prerequisites
+
+- .NET 9.0 SDK
+- SQL Server
+- Visual Studio 2022 or VS Code
 
 ## Getting Started
 
-### Prerequisites
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/ParkIRC.git
+```
 
-- .NET 8.0 SDK or later
+2. Navigate to the project directory:
+```bash
+cd ParkIRC
+```
 
-### Running the Application
+3. Update the connection string in `appsettings.json`:
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=.;Database=GeexParkingDB;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True"
+  }
+}
+```
 
-1. Clone the repository
-2. Navigate to the project directory
-3. Run the application:
-   ```
-   dotnet run
-   ```
-4. Access the application in your browser at `http://localhost:5126`
+4. Apply database migrations:
+```bash
+dotnet ef database update
+```
 
-## Configuration
+5. Run the application:
+```bash
+dotnet run
+```
 
-The application is currently configured to use an in-memory database for development and testing purposes. For production use, you should configure a persistent database like SQL Server, PostgreSQL, or SQLite.
+6. Access the application:
+- HTTP: http://localhost:5000
+- HTTPS: https://localhost:5001
 
-To configure a different database provider:
+## Default Admin Account
 
-1. Install the appropriate NuGet package for your database provider
-2. Update the connection string in `appsettings.json`
-3. Modify the database configuration in `Program.cs`
+- Email: admin@parkingsystem.com
+- Password: Admin@123
 
-## Default Credentials
+## Contributing
 
-For testing purposes, the application comes with pre-seeded data including parking spaces and sample vehicles.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
