@@ -9,6 +9,17 @@ namespace ParkIRC.Middleware
         private readonly RequestDelegate _next;
         private static readonly ConcurrentDictionary<string, DateTime> _lastRequestTimes = new();
         private static readonly TimeSpan _requestInterval = TimeSpan.FromSeconds(1);
+        
+        private static readonly string[] _excludedPaths = new[] 
+        { 
+            "/Parking/RecordEntry",
+            "/Management/CreateParkingSlot",
+            "/Management/EditParkingSlot",
+            "/Management/DeleteParkingSlot",
+            "/Rates/Create",
+            "/Rates/Edit",
+            "/Rates/Delete"
+        };
 
         public RateLimitingMiddleware(RequestDelegate next)
         {
@@ -17,6 +28,14 @@ namespace ParkIRC.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
+            var path = context.Request.Path.Value ?? "";
+            
+            if (_excludedPaths.Any(p => path.Contains(p, StringComparison.OrdinalIgnoreCase)))
+            {
+                await _next(context);
+                return;
+            }
+            
             var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
             var currentTime = DateTime.UtcNow;
 

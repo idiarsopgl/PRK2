@@ -1,0 +1,185 @@
+@model IEnumerable<ParkIRC.Models.Shift>
+@{
+    ViewData["Title"] = "Kelola Shift";
+}
+
+<div class="container-fluid">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-clock me-2"></i>Kelola Shift</h6>
+            <a href="@Url.Action("CreateShift")" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus me-1"></i> Tambah Shift Baru
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <h5><i class="fas fa-info-circle me-2"></i>Informasi</h5>
+                <p>Fitur pengelolaan shift sedang dalam pengembangan. Segera hadir pada pembaruan berikutnya.</p>
+                <p>Berikut fungsionalitas yang akan tersedia:</p>
+                <ul>
+                    <li>Membuat, mengedit, dan menghapus shift kerja</li>
+                    <li>Menetapkan operator ke shift tertentu</li>
+                    <li>Melihat jadwal shift</li>
+                    <li>Rotasi shift otomatis</li>
+                    <li>Laporan kehadiran per shift</li>
+                </ul>
+            </div>
+            
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="card mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">Shift Default</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Nama Shift</th>
+                                            <th>Waktu Mulai</th>
+                                            <th>Waktu Selesai</th>
+                                            <th>Deskripsi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Pagi</td>
+                                            <td>07:00</td>
+                                            <td>15:00</td>
+                                            <td>Shift pagi reguler</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Sore</td>
+                                            <td>15:00</td>
+                                            <td>23:00</td>
+                                            <td>Shift sore reguler</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Malam</td>
+                                            <td>23:00</td>
+                                            <td>07:00</td>
+                                            <td>Shift malam reguler</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-6">
+                    <div class="card mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">Jadwal Minggu Ini</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Jadwal shift belum ditetapkan untuk minggu ini.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered" id="shiftsTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Nama Shift</th>
+                            <th>Waktu Mulai</th>
+                            <th>Waktu Selesai</th>
+                            <th>Deskripsi</th>
+                            <th>Status</th>
+                            <th>Dibuat Oleh</th>
+                            <th>Terakhir Diubah</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>@item.Name</td>
+                                <td>@item.StartTime.ToString(@"hh\:mm")</td>
+                                <td>@item.EndTime.ToString(@"hh\:mm")</td>
+                                <td>@item.Description</td>
+                                <td>
+                                    @if (item.IsActive)
+                                    {
+                                        <span class="badge bg-success">Aktif</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">Tidak Aktif</span>
+                                    }
+                                </td>
+                                <td>
+                                    @item.CreatedBy
+                                    <br />
+                                    <small class="text-muted">@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                                </td>
+                                <td>
+                                    @if (item.LastModifiedBy != null)
+                                    {
+                                        @item.LastModifiedBy
+                                        <br />
+                                        <small class="text-muted">@item.LastModifiedAt?.ToString("dd/MM/yyyy HH:mm")</small>
+                                    }
+                                    else
+                                    {
+                                        <span>-</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="@Url.Action("EditShift", new { id = item.Id })" class="btn btn-sm btn-info">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-@item.Id">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+
+                                    <!-- Delete Modal -->
+                                    <div class="modal fade" id="deleteModal-@item.Id" tabindex="-1" aria-labelledby="deleteModalLabel-@item.Id" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="deleteModalLabel-@item.Id">Konfirmasi Hapus</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    Apakah Anda yakin ingin menghapus shift <strong>@item.Name</strong>?
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                                    <form asp-action="DeleteShift" asp-route-id="@item.Id" method="post">
+                                                        <button type="submit" class="btn btn-danger">Hapus</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('#shiftsTable').DataTable({
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json'
+                }
+            });
+        });
+    </script>
+} 

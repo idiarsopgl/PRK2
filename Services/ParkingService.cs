@@ -24,7 +24,7 @@ namespace ParkIRC.Services
         public async Task<ParkingTransaction> ProcessExitAsync(string vehicleNumber, string paymentMethod)
         {
             var vehicle = await _context.Vehicles
-                .Include(v => v.AssignedSpace)
+                .Include(v => v.ParkingSpace)
                 .FirstOrDefaultAsync(v => v.VehicleNumber == vehicleNumber && v.IsParked);
 
             if (vehicle == null)
@@ -54,13 +54,13 @@ namespace ParkIRC.Services
             var exitTime = DateTime.UtcNow;
             var duration = exitTime - vehicle.EntryTime;
             var hours = Math.Ceiling(duration.TotalHours);
-            var hourlyRate = vehicle.AssignedSpace?.HourlyRate ?? 0m;
+            var hourlyRate = vehicle.ParkingSpace?.HourlyRate ?? 0m;
             decimal totalAmount = (decimal)hours * hourlyRate;
 
             var transaction = new ParkingTransaction
             {
                 VehicleId = vehicle.Id,
-                ParkingSpaceId = vehicle.AssignedSpaceId ?? 0,
+                ParkingSpaceId = vehicle.ParkingSpaceId ?? 0,
                 TransactionNumber = GenerateTransactionNumber(),
                 EntryTime = vehicle.EntryTime,
                 ExitTime = exitTime,
@@ -71,16 +71,17 @@ namespace ParkIRC.Services
                 PaymentMethod = "Cash",
                 PaymentTime = exitTime,
                 Vehicle = vehicle,
-                ParkingSpace = vehicle.AssignedSpace
+                ParkingSpace = vehicle.ParkingSpace
             };
 
-            if (vehicle.AssignedSpace != null)
+            if (vehicle.ParkingSpace != null)
             {
-                vehicle.AssignedSpace.IsOccupied = false;
-                vehicle.AssignedSpace.CurrentVehicle = null;
-                vehicle.AssignedSpace.LastOccupiedTime = exitTime;
+                vehicle.ParkingSpace.IsOccupied = false;
+                vehicle.ParkingSpace.CurrentVehicle = null;
+                vehicle.ParkingSpace.LastOccupiedTime = exitTime;
             }
-            vehicle.AssignedSpaceId = null;
+            vehicle.ParkingSpace = null;
+            vehicle.ParkingSpaceId = null;
 
             _context.ParkingTransactions.Add(transaction);
             await _context.SaveChangesAsync();
@@ -100,7 +101,7 @@ namespace ParkIRC.Services
 
             availableSpace.IsOccupied = true;
             availableSpace.CurrentVehicle = vehicle;
-            vehicle.AssignedSpace = availableSpace;
+            vehicle.ParkingSpace = availableSpace;
             vehicle.EntryTime = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -116,7 +117,7 @@ namespace ParkIRC.Services
 
             var duration = DateTime.UtcNow - vehicle.EntryTime;
             var hours = Math.Ceiling(duration.TotalHours);
-            var space = await _context.ParkingSpaces.FindAsync(vehicle.AssignedSpaceId);
+            var space = await _context.ParkingSpaces.FindAsync(vehicle.ParkingSpaceId);
             
             if (space == null)
             {

@@ -15,6 +15,7 @@ namespace ParkIRC.Data
         public DbSet<ParkingSpace> ParkingSpaces { get; set; }
         public DbSet<Vehicle> Vehicles { get; set; }
         public DbSet<ParkingTransaction> ParkingTransactions { get; set; }
+        public DbSet<Shift> Shifts { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -27,8 +28,8 @@ namespace ParkIRC.Data
                 entity.Property(e => e.SpaceType).IsRequired();
                 entity.Property(e => e.HourlyRate).HasColumnType("decimal(18,2)");
                 entity.HasOne(e => e.CurrentVehicle)
-                    .WithOne(v => v.AssignedSpace)
-                    .HasForeignKey<Vehicle>(v => v.AssignedSpaceId)
+                    .WithOne(v => v.ParkingSpace)
+                    .HasForeignKey<Vehicle>(v => v.ParkingSpaceId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
 
@@ -54,6 +55,14 @@ namespace ParkIRC.Data
                     .WithMany(p => p.Transactions)
                     .HasForeignKey(e => e.ParkingSpaceId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<Shift>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired();
+                entity.Property(e => e.StartTime).IsRequired();
+                entity.Property(e => e.EndTime).IsRequired();
             });
         }
     }

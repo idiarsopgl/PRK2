@@ -125,13 +125,13 @@ using (var scope = app.Services.CreateScope())
             // Assign vehicles to spaces
             parkingSpaces[0].IsOccupied = true;
             parkingSpaces[0].CurrentVehicle = vehicle1;
-            vehicle1.AssignedSpace = parkingSpaces[0];
-            vehicle1.AssignedSpaceId = parkingSpaces[0].Id;
+            vehicle1.ParkingSpace = parkingSpaces[0];
+            vehicle1.ParkingSpaceId = parkingSpaces[0].Id;
             
             parkingSpaces[3].IsOccupied = true;
             parkingSpaces[3].CurrentVehicle = vehicle3;
-            vehicle3.AssignedSpace = parkingSpaces[3];
-            vehicle3.AssignedSpaceId = parkingSpaces[3].Id;
+            vehicle3.ParkingSpace = parkingSpaces[3];
+            vehicle3.ParkingSpaceId = parkingSpaces[3].Id;
             
             // Create some completed transactions
             var transaction1 = new ParkingTransaction
@@ -220,7 +220,7 @@ app.UseAuthorization();
 // Configure endpoints
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Parking}/{action=Dashboard}/{id?}");
+    pattern: "{controller=Auth}/{action=Login}/{id?}");
 
 // Map SignalR hub
 app.MapHub<ParkingHub>("/parkingHub");

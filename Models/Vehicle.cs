@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ParkIRC.Models
 {
@@ -33,8 +34,10 @@ namespace ParkIRC.Models
         public DateTime? ExitTime { get; set; }
         public bool IsParked { get; set; }
         
-        public int? AssignedSpaceId { get; set; }
-        public virtual ParkingSpace? AssignedSpace { get; set; }
+        public int? ParkingSpaceId { get; set; }
+        
+        [ForeignKey("ParkingSpaceId")]
+        public virtual ParkingSpace? ParkingSpace { get; set; }
         
         public virtual ICollection<ParkingTransaction> Transactions { get; set; }
     }

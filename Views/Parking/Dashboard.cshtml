@@ -1,24 +1,43 @@
 @model ParkIRC.Models.DashboardViewModel
 @{
     ViewData["Title"] = "Parking Dashboard";
+    
+    // Prepare data for charts
+    var hourlyOccupancyData = new { 
+        Labels = Model.HourlyOccupancy.Select(x => x.Hour).ToArray(),
+        Data = Model.HourlyOccupancy.Select(x => x.OccupancyPercentage).ToArray()
+    };
+    
+    // Get vehicle type distribution data
+    var vehicleTypes = new Dictionary<string, int>();
+    foreach (var activity in Model.RecentActivity.Where(a => a.ActionType == "Entry"))
+    {
+        var type = activity.VehicleType;
+        if (!vehicleTypes.ContainsKey(type))
+            vehicleTypes[type] = 0;
+        vehicleTypes[type]++;
+    }
+    
+    var vehicleTypeData = new {
+        Labels = vehicleTypes.Keys.ToArray(),
+        Data = vehicleTypes.Values.ToArray()
+    };
 }
 
 <div class="container-fluid">
     <!-- Error Alert -->
-    @if (ViewData["Error"] != null)
+    @if (ViewData["ErrorMessage"] != null)
     {
         <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
-            <strong>Error!</strong> @ViewData["Error"]
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
+            <strong>Error!</strong> @ViewData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
 
     <!-- Loading Indicator -->
     <div id="loadingIndicator" class="text-center d-none">
         <div class="spinner-border text-primary" role="status">
-            <span class="sr-only">Loading...</span>
+            <span class="visually-hidden">Loading...</span>
         </div>
         <p>Updating dashboard data...</p>
     </div>
@@ -30,8 +49,8 @@
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Spaces</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalSpaces">@ViewData["TotalSpaces"]</div>
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">TOTAL RUANG</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalSpaces">@Model.TotalSpaces</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-car fa-2x text-gray-300"></i>
@@ -47,8 +66,8 @@
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Available Spaces</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="availableSpaces">@ViewData["AvailableSpaces"]</div>
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">RUANG TERSEDIA</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="availableSpaces">@Model.AvailableSpaces</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-check-circle fa-2x text-gray-300"></i>
@@ -64,8 +83,8 @@
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Occupied Spaces</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="occupiedSpaces">@ViewData["OccupiedSpaces"]</div>
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">RUANG TERPAKAI</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="occupiedSpaces">@(Model.TotalSpaces - Model.AvailableSpaces)</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-car-side fa-2x text-gray-300"></i>
@@ -81,8 +100,8 @@
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Today's Revenue</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="todayRevenue">$@ViewData["TodayRevenue"]</div>
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">PENDAPATAN HARI INI</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="todayRevenue">Rp @Model.DailyRevenue.ToString("N0")</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
@@ -93,11 +112,11 @@
         </div>
     </div>
 
-    <!-- Export Button -->
+    <!-- Action Buttons -->
     <div class="row mb-4">
         <div class="col-12">
             <a href="@Url.Action("ExportDashboardData", "Parking")" class="btn btn-sm btn-primary">
-                <i class="fas fa-download fa-sm text-white-50"></i> Export Report
+                <i class="fas fa-download fa-sm text-white-50"></i> Export Laporan
             </a>
             <button id="refreshDashboard" class="btn btn-sm btn-info">
                 <i class="fas fa-sync fa-sm text-white-50"></i> Refresh Data
@@ -111,12 +130,22 @@
         <div class="col-xl-8 col-lg-7">
             <div class="card shadow">
                 <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Hourly Occupancy Rate</h6>
+                    <h6 class="m-0 font-weight-bold text-primary">Tingkat Okupansi per Jam</h6>
                 </div>
                 <div class="card-body">
+                    @if (Model.HourlyOccupancy != null && Model.HourlyOccupancy.Any())
+                    {
                     <div class="chart-area">
                         <canvas id="occupancyChart"></canvas>
                     </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-chart-line fa-3x text-gray-300 mb-3"></i>
+                            <p class="text-muted">Belum ada data okupansi hari ini</p>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -125,12 +154,22 @@
         <div class="col-xl-4 col-lg-5">
             <div class="card shadow">
                 <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Vehicle Types Distribution</h6>
+                    <h6 class="m-0 font-weight-bold text-primary">Distribusi Jenis Kendaraan</h6>
                 </div>
                 <div class="card-body">
+                    @if (vehicleTypes.Count > 0)
+                    {
                     <div class="chart-pie pt-4">
                         <canvas id="vehicleTypeChart"></canvas>
                     </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-car fa-3x text-gray-300 mb-3"></i>
+                            <p class="text-muted">Belum ada data kendaraan hari ini</p>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -142,44 +181,44 @@
         <div class="col-lg-8">
             <div class="card shadow mb-4">
                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-primary">Recent Parking Activity</h6>
+                    <h6 class="m-0 font-weight-bold text-primary">Aktivitas Parkir Terbaru</h6>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-bordered" width="100%" cellspacing="0" id="activityTable">
                             <thead>
                                 <tr>
-                                    <th>Vehicle Number</th>
-                                    <th>Entry Time</th>
-                                    <th>Exit Time</th>
-                                    <th>Duration</th>
-                                    <th>Amount</th>
+                                    <th>Nomor Kendaraan</th>
+                                    <th>Waktu Masuk</th>
+                                    <th>Waktu Keluar</th>
+                                    <th>Durasi</th>
+                                    <th>Biaya</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @if (ViewData["RecentActivity"] is List<object> recentActivities)
+                                @if (Model.RecentActivity != null && Model.RecentActivity.Any())
                                 {
-                                    foreach (var activity in recentActivities)
+                                    foreach (var activity in Model.RecentActivity)
                                     {
-                                        var parkingActivity = activity as ParkIRC.Models.ParkingActivityViewModel;
-                                        if (parkingActivity != null)
-                                        {
-                                            <tr>
-                                                <td>@parkingActivity.VehicleNumber</td>
-                                                <td>@parkingActivity.EntryTime.ToString("MM/dd/yyyy HH:mm")</td>
-                                                <td>@(parkingActivity.ExitTime?.ToString("MM/dd/yyyy HH:mm") ?? "-")</td>
-                                                <td>@parkingActivity.Duration</td>
-                                                <td>$@parkingActivity.Amount</td>
-                                                <td><span class="badge badge-@(parkingActivity.Status == "Completed" ? "success" : "warning")">@parkingActivity.Status</span></td>
-                                            </tr>
-                                        }
+                                        <tr>
+                                            <td>@activity.LicensePlate</td>
+                                            <td>@activity.Timestamp.ToString("dd/MM/yyyy HH:mm")</td>
+                                            <td>@(activity.ActionType == "Exit" ? activity.Timestamp.ToString("dd/MM/yyyy HH:mm") : "-")</td>
+                                            <td>@(activity.ActionType == "Exit" ? "1 jam" : "-")</td>
+                                            <td>@(activity.Fee.HasValue ? $"Rp {activity.Fee.Value:N0}" : "-")</td>
+                                            <td>
+                                                <span class="badge @(activity.ActionType == "Exit" ? "bg-success" : "bg-warning")">
+                                                    @(activity.ActionType == "Exit" ? "Selesai" : "Aktif")
+                                                </span>
+                                            </td>
+                                        </tr>
                                     }
                                 }
                                 else
                                 {
                                     <tr>
-                                        <td colspan="6" class="text-center">No recent activity found</td>
+                                        <td colspan="6" class="text-center">Belum ada aktivitas parkir terbaru</td>
                                     </tr>
                                 }
                             </tbody>
@@ -193,11 +232,11 @@
         <div class="col-lg-4">
             <div class="card shadow mb-4">
                 <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Live Notifications</h6>
+                    <h6 class="m-0 font-weight-bold text-primary">Notifikasi Langsung</h6>
                 </div>
                 <div class="card-body">
                     <div id="notificationsArea" class="notification-area" style="height: 300px; overflow-y: auto;">
-                        <p class="text-center text-muted">No recent notifications</p>
+                        <p class="text-center text-muted">Belum ada notifikasi terbaru</p>
                     </div>
                 </div>
             </div>
@@ -213,161 +252,186 @@
         let occupancyChart;
         let vehicleTypeChart;
         
+        // Initialize charts with error handling
+        $(document).ready(function() {
+            try {
         // Hourly Occupancy Chart
-        var occupancyData = @Json.Serialize(ViewData["HourlyOccupancy"]);
+                var occupancyData = @Json.Serialize(hourlyOccupancyData);
+                if (occupancyData && occupancyData.Labels && occupancyData.Labels.length > 0) {
         var occupancyCtx = document.getElementById('occupancyChart').getContext('2d');
-        occupancyChart = new Chart(occupancyCtx, {
+                    occupancyChart = new Chart(occupancyCtx, {
             type: 'line',
             data: {
                 labels: occupancyData.Labels,
                 datasets: [{
-                    label: 'Occupied Spaces',
+                                label: 'Tingkat Okupansi (%)',
                     data: occupancyData.Data,
                     borderColor: '#4e73df',
                     backgroundColor: 'rgba(78, 115, 223, 0.05)',
-                    tension: 0.3
+                                tension: 0.3,
+                                fill: true
                 }]
             },
             options: {
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false }
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return `Okupansi: ${context.parsed.y.toFixed(1)}%`;
+                                        }
+                                    }
+                                }
                 },
                 scales: {
-                    y: { beginAtZero: true }
+                                y: { 
+                                    beginAtZero: true,
+                                    max: 100,
+                                    title: {
+                                        display: true,
+                                        text: 'Persentase Okupansi (%)'
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Jam'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error initializing occupancy chart:', error);
+                if (document.getElementById('occupancyChart')) {
+                    document.getElementById('occupancyChart').insertAdjacentHTML('afterend', 
+                        '<div class="text-center text-danger p-3">Error saat memuat data grafik</div>');
+                    document.getElementById('occupancyChart').style.display = 'none';
                 }
             }
-        });
-
+            
+            try {
         // Vehicle Type Distribution Chart
-        var distributionData = @Json.Serialize(ViewData["VehicleTypeDistribution"]);
-        var distributionCtx = document.getElementById('vehicleTypeChart').getContext('2d');
-        vehicleTypeChart = new Chart(distributionCtx, {
+                var distributionData = @Json.Serialize(vehicleTypeData);
+                if (distributionData && distributionData.Labels && distributionData.Labels.length > 0) {
+                    var distributionCtx = document.getElementById('vehicleTypeChart');
+                    if (distributionCtx) {
+                        distributionCtx = distributionCtx.getContext('2d');
+                        vehicleTypeChart = new Chart(distributionCtx, {
             type: 'doughnut',
             data: {
                 labels: distributionData.Labels,
                 datasets: [{
                     data: distributionData.Data,
-                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e']
+                                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
+                                    hoverBackgroundColor: ['#2e59d9', '#17a673', '#2c9faf', '#dda20a', '#be2617'],
+                                    hoverBorderColor: "rgba(234, 236, 244, 1)",
                 }]
             },
             options: {
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'bottom' }
+                                    legend: {
+                                        position: 'bottom',
+                                    }
+                                },
+                                cutout: '70%',
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error initializing vehicle type chart:', error);
+                if (document.getElementById('vehicleTypeChart')) {
+                    document.getElementById('vehicleTypeChart').insertAdjacentHTML('afterend', 
+                        '<div class="text-center text-danger p-3">Error saat memuat data grafik</div>');
+                    document.getElementById('vehicleTypeChart').style.display = 'none';
                 }
             }
-        });
-        
-        // SignalR Connection
-        const connection = new signalR.HubConnectionBuilder()
-            .withUrl("/parkingHub")
-            .configureLogging(signalR.LogLevel.Information)
-            .build();
             
-        // Start connection
-        async function startConnection() {
-            try {
-                await connection.start();
-                console.log("SignalR Connected.");
-                addNotification("Dashboard connected for real-time updates", "info");
-            } catch (err) {
-                console.log(err);
-                setTimeout(startConnection, 5000);
-            }
-        }
-        
-        // Add notification to the notification area
-        function addNotification(message, type = "primary") {
-            const notificationsArea = document.getElementById('notificationsArea');
-            
-            // Clear "no notifications" message if present
-            if (notificationsArea.querySelector('.text-muted')) {
-                notificationsArea.innerHTML = '';
-            }
-            
-            const notification = document.createElement('div');
-            notification.className = `alert alert-${type} alert-dismissible fade show mb-2 py-2`;
-            notification.innerHTML = `
-                ${message}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-                <small class="d-block text-right">${new Date().toLocaleTimeString()}</small>
-            `;
-            
-            notificationsArea.prepend(notification);
-            
-            // Limit notifications to 10
-            const notifications = notificationsArea.querySelectorAll('.alert');
-            if (notifications.length > 10) {
-                notificationsArea.removeChild(notifications[notifications.length - 1]);
-            }
-        }
-        
-        // Update dashboard with new data
-        function updateDashboard(data) {
-            document.getElementById('loadingIndicator').classList.add('d-none');
-            
-            // Update counters
-            document.getElementById('totalSpaces').innerText = data.totalSpaces;
-            document.getElementById('availableSpaces').innerText = data.availableSpaces;
-            document.getElementById('occupiedSpaces').innerText = data.totalSpaces - data.availableSpaces;
-            document.getElementById('todayRevenue').innerText = '$' + data.dailyRevenue;
-            
-            // Update charts if new data is available
-            if (data.hourlyOccupancy && data.hourlyOccupancy.length > 0) {
-                updateOccupancyChart(data.hourlyOccupancy);
-            }
-            
-            // We would update activity table here as well in a complete implementation
-        }
-        
-        // Update occupancy chart
-        function updateOccupancyChart(hourlyData) {
-            const labels = hourlyData.map(item => item.hour);
-            const data = hourlyData.map(item => item.occupancyPercentage);
-            
-            occupancyChart.data.labels = labels;
-            occupancyChart.data.datasets[0].data = data;
-            occupancyChart.update();
-        }
-        
-        // Refresh dashboard manually
-        document.getElementById('refreshDashboard').addEventListener('click', function() {
-            document.getElementById('loadingIndicator').classList.remove('d-none');
-            fetch('@Url.Action("Dashboard", "Parking")', { 
-                headers: { 
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                updateDashboard(data);
-                addNotification("Dashboard data refreshed", "success");
-            })
-            .catch(error => {
-                document.getElementById('loadingIndicator').classList.add('d-none');
-                addNotification("Error refreshing dashboard data", "danger");
-                console.error('Error:', error);
+            // Refresh dashboard button
+            $("#refreshDashboard").on("click", function() {
+                $("#loadingIndicator").removeClass("d-none");
+                location.reload();
             });
         });
-        
-        // SignalR event handlers
-        connection.on("ReceiveDashboardUpdate", (data) => {
-            updateDashboard(data);
-            addNotification("Dashboard data updated", "success");
+
+        // SignalR connection for real-time updates
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/parkingHub")
+            .build();
+
+        connection.on("ReceiveDashboardUpdate", function (data) {
+            try {
+                // Update dashboard stats
+                $("#totalSpaces").text(data.totalSpaces);
+                $("#availableSpaces").text(data.availableSpaces);
+                $("#occupiedSpaces").text(data.totalSpaces - data.availableSpaces);
+                $("#todayRevenue").text("Rp " + data.dailyRevenue.toLocaleString('id-ID'));
+                
+                // Add notification
+                addNotification("Dashboard telah diperbarui");
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+            }
         });
         
-        connection.on("VehicleEntryNotification", (vehicleNumber) => {
-            addNotification(`Vehicle ${vehicleNumber} has entered the parking lot`, "success");
+        connection.on("VehicleEntryNotification", function(vehicleNumber) {
+            addNotification(`Kendaraan ${vehicleNumber} telah masuk`);
         });
         
-        connection.on("VehicleExitNotification", (vehicleNumber) => {
-            addNotification(`Vehicle ${vehicleNumber} has exited the parking lot`, "warning");
+        connection.on("VehicleExitNotification", function(vehicleNumber) {
+            addNotification(`Kendaraan ${vehicleNumber} telah keluar`);
         });
         
-        // Start SignalR connection
-        startConnection();
+        connection.on("PlateDetectionResult", function(result) {
+            if (result.isSuccessful) {
+                addNotification(`Plat nomor terdeteksi: ${result.licensePlate}`);
+            } else {
+                addNotification(`Gagal mendeteksi plat nomor`);
+            }
+        });
+        
+        function addNotification(message) {
+            const notification = `
+                <div class="alert alert-info alert-dismissible fade show mb-2" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            
+            $("#notificationsArea").prepend(notification);
+            
+            // Clear "No notifications" message if it exists
+            if ($("#notificationsArea p.text-muted").length) {
+                $("#notificationsArea p.text-muted").remove();
+            }
+            
+            // Limit to 10 notifications
+            if ($("#notificationsArea .alert").length > 10) {
+                $("#notificationsArea .alert:last").remove();
+            }
+        }
+
+        // Connect to SignalR hub
+        try {
+            connection.start()
+                .then(function () {
+                    console.log("SignalR connected");
+                    addNotification("Terhubung ke server untuk pembaruan real-time");
+                })
+                .catch(function (err) {
+                    console.error("SignalR connection error: " + err.toString());
+                    $("#notificationsArea").html(`
+                        <div class="alert alert-warning" role="alert">
+                            Pembaruan real-time tidak tersedia. Silakan refresh halaman secara manual.
+                        </div>
+                    `);
+                });
+        } catch (error) {
+            console.error('Error establishing SignalR connection:', error);
+        }
     </script>
 }

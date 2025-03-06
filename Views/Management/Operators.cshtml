@@ -1,0 +1,76 @@
+@model IEnumerable<ParkIRC.Models.ApplicationUser>
+
+@{
+    ViewData["Title"] = "Kelola Operator";
+}
+
+<div class="container-fluid">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-users me-2"></i>Kelola Operator</h6>
+            <a href="@Url.Action("Register", "Auth")" class="btn btn-primary btn-sm">
+                <i class="fas fa-user-plus me-1"></i> Tambah Operator Baru
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="operatorsTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Nama</th>
+                            <th>Email</th>
+                            <th>Username</th>
+                            <th>Status Email</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>@item.FullName</td>
+                                <td>@item.Email</td>
+                                <td>@item.UserName</td>
+                                <td>
+                                    @if (item.EmailConfirmed)
+                                    {
+                                        <span class="badge bg-success">Terverifikasi</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark">Belum Terverifikasi</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="#" class="btn btn-sm btn-info" onclick="alert('Fitur edit profil belum tersedia')">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="#" class="btn btn-sm btn-warning" onclick="alert('Fitur reset password belum tersedia')">
+                                            <i class="fas fa-key"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="alert('Fitur deaktivasi akun belum tersedia')">
+                                            <i class="fas fa-user-slash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('#operatorsTable').DataTable({
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json'
+                }
+            });
+        });
+    </script>
+} 

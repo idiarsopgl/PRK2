@@ -4,16 +4,18 @@
 
 <partial name="~/Views/Shared/Partials/_Head.cshtml" />
 
-<body class="geex-dashboard">
+<body class="geex-dashboard top-menu-only">
 
 
     <partial name="~/Views/Shared/Partials/_Header.cshtml" />
 
     <main class="geex-main-content">
 
-        <partial name="~/Views/Shared/Partials/_Sidebar.cshtml" />
+        @* Sidebar is hidden for top-menu only layout *@
+        @* <partial name="~/Views/Shared/Partials/_Sidebar.cshtml" /> *@
 
-        <partial name="~/Views/Shared/Partials/_Customizer.cshtml" />
+        @* Customizer is not needed for focused parking application *@
+        @* <partial name="~/Views/Shared/Partials/_Customizer.cshtml" /> *@
         
 
         <div class="geex-content">
@@ -28,9 +30,15 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
     <!-- Third-party plugins -->
     <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.27.0/dist/apexcharts.min.js"></script>
+    
+    <!-- SweetAlert2 for notifications -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <!-- SignalR for real-time updates -->
     <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
@@ -45,6 +53,108 @@
     <!-- Page-specific scripts -->
     @await RenderSectionAsync("Scripts", required: false)
     <!-- JAVASCRIPTS END -->
+
+    <style>
+        /* Styles for top-menu-only layout */
+        body.top-menu-only .geex-content {
+            margin-left: 0 !important;
+            width: 100% !important;
+        }
+        
+        body.top-menu-only .geex-header {
+            width: 100% !important;
+        }
+        
+        /* Add more space in header menu items for better visibility */
+        body.top-menu-only .geex-header__menu__item {
+            margin-right: 20px;
+        }
+        
+        /* Make content use full width */
+        body.top-menu-only .geex-main-content {
+            margin-left: 0;
+        }
+        
+        /* Logo and title styling */
+        .geex-header__logo-wrapper {
+            display: flex;
+            align-items: center;
+        }
+        
+        /* Dropdown menu styling */
+        .geex-header__submenu {
+            position: absolute;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            min-width: 220px;
+            padding: 10px 0;
+            z-index: 999;
+            display: none;
+        }
+        
+        .geex-header__menu__item.has-children:hover .geex-header__submenu {
+            display: block;
+        }
+        
+        .geex-header__submenu .geex-header__menu__item {
+            margin: 0;
+            padding: 0;
+        }
+        
+        .geex-header__submenu .geex-header__menu__link {
+            padding: 8px 15px;
+            display: block;
+            color: #555;
+            font-size: 14px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        
+        .geex-header__submenu .geex-header__menu__link:hover {
+            background-color: #f8f9fa;
+            color: #007bff;
+        }
+        
+        /* Logout button styling */
+        .geex-header__right-side .geex-btn {
+            padding: 8px 16px;
+            background-color: #dc3545;
+            color: white;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .geex-header__right-side .geex-btn:hover {
+            background-color: #c82333;
+        }
+        
+        /* Responsive adjustments */
+        @@media (max-width: 991px) {
+            .geex-header__submenu {
+                position: static;
+                box-shadow: none;
+                padding-left: 20px;
+            }
+            
+            .geex-header__menu__item.has-children:hover .geex-header__submenu {
+                display: none;
+            }
+            
+            .geex-header__menu__item.has-children.active .geex-header__submenu {
+                display: block;
+            }
+            
+            /* Hide system title on mobile */
+            .geex-header__logo-wrapper span {
+                display: none;
+            }
+        }
+    </style>
 </body>
 
 </html>

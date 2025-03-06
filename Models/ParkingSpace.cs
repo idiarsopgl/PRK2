@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ParkIRC.Models
 {
@@ -29,8 +30,7 @@ namespace ParkIRC.Models
         
         public decimal HourlyRate { get; set; }
         
-        public int? CurrentVehicleId { get; set; }
-        
+        [InverseProperty("ParkingSpace")]
         public virtual Vehicle? CurrentVehicle { get; set; }
         
         public virtual ICollection<ParkingTransaction> Transactions { get; set; }

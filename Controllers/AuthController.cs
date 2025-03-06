@@ -16,8 +16,6 @@ using System.Net;
 
 namespace ParkIRC.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
     public class AuthController : Controller
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -43,6 +41,12 @@ namespace ParkIRC.Controllers
         [HttpGet]
         public IActionResult Login(string? returnUrl = null)
         {
+            // If user is already logged in, redirect to dashboard
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                return RedirectToAction("Dashboard", "Parking");
+            }
+            
             ViewData["ReturnUrl"] = returnUrl;
             return View();
         }
@@ -98,7 +102,7 @@ namespace ParkIRC.Controllers
                     Email = model.Email,
                     FullName = model.FullName
                 };
-                
+
                 var result = await _userManager.CreateAsync(user, model.Password);
                 
                 if (result.Succeeded)
@@ -107,7 +111,7 @@ namespace ParkIRC.Controllers
                     
                     // Add to Staff role by default
                     await _userManager.AddToRoleAsync(user, "Staff");
-                    
+
                     await _signInManager.SignInAsync(user, isPersistent: false);
                     return RedirectToAction("Dashboard", "Parking");
                 }
@@ -305,10 +309,11 @@ namespace ParkIRC.Controllers
 
         private IActionResult RedirectToLocal(string? returnUrl)
         {
-            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            if (Url.IsLocalUrl(returnUrl))
             {
                 return Redirect(returnUrl);
             }
+            
             return RedirectToAction("Dashboard", "Parking");
         }
     }
@@ -323,7 +328,7 @@ namespace ParkIRC.Controllers
         [EmailAddress]
         [Display(Name = "Email")]
         public string Email { get; set; } = string.Empty;
-        
+
         [Required]
         [StringLength(100, ErrorMessage = "The {0} must be at least {2} characters long.", MinimumLength = 8)]
         [DataType(DataType.Password)]
@@ -341,11 +346,11 @@ namespace ParkIRC.Controllers
         [Required]
         [EmailAddress]
         public string Email { get; set; } = string.Empty;
-        
+
         [Required]
         [DataType(DataType.Password)]
         public string Password { get; set; } = string.Empty;
-        
+
         public bool RememberMe { get; set; }
     }
 
