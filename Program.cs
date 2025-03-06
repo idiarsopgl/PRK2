@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Geex.Data;
-using Geex;
+using ParkIRC.Data;
+using ParkIRC;
 using Microsoft.Extensions.DependencyInjection;
-using Geex.Hubs;
-using Geex.Models;
+using ParkIRC.Hubs;
+using ParkIRC.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,9 +23,22 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
     // Lockout settings
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.Lockout.MaxFailedAccessAttempts = 5;
+    
+    // User settings
+    options.User.RequireUniqueEmail = true;
 })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
+
+// Configure cookie settings
+builder.Services.ConfigureApplicationCookie(options => {
+    options.Cookie.HttpOnly = true;
+    options.ExpireTimeSpan = TimeSpan.FromDays(30);
+    options.LoginPath = "/Auth/Login";
+    options.LogoutPath = "/Auth/Logout";
+    options.AccessDeniedPath = "/Auth/AccessDenied";
+    options.SlidingExpiration = true;
+});
 
 // Add SignalR support
 builder.Services.AddSignalR();
@@ -48,6 +61,8 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
+        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
         
         // Seed parking spaces
         if (!context.ParkingSpaces.Any())
@@ -127,6 +142,35 @@ using (var scope = app.Services.CreateScope())
             };
             
             context.ParkingTransactions.Add(transaction1);
+            
+            // Create roles if they don't exist
+            if (!await roleManager.RoleExistsAsync("Admin"))
+            {
+                await roleManager.CreateAsync(new IdentityRole("Admin"));
+            }
+            
+            if (!await roleManager.RoleExistsAsync("Staff"))
+            {
+                await roleManager.CreateAsync(new IdentityRole("Staff"));
+            }
+            
+            // Create a default admin user
+            if (await userManager.FindByEmailAsync("admin@parkingsystem.com") == null)
+            {
+                var adminUser = new ApplicationUser
+                {
+                    UserName = "admin@parkingsystem.com",
+                    Email = "admin@parkingsystem.com",
+                    FullName = "System Administrator",
+                    EmailConfirmed = true
+                };
+                
+                var result = await userManager.CreateAsync(adminUser, "Admin@123");
+                if (result.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(adminUser, "Admin");
+                }
+            }
             
             // Save changes
             context.SaveChanges();

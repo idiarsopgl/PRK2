@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 
-namespace Geex
+namespace ParkIRC
 {
     public class ApplicationUser : IdentityUser
     {

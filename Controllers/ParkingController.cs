@@ -1,16 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Geex.Models;
-using Geex.Data;
+using ParkIRC.Models;
+using ParkIRC.Data;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.SignalR;
-using Geex.Hubs;
+using ParkIRC.Hubs;
 
-namespace Geex.Controllers
+namespace ParkIRC.Controllers
 {
     public class ParkingController : Controller
     {

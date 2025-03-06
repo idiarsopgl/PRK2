@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.SignalR;
 using System.Threading.Tasks;
-using Geex.Models;
+using ParkIRC.Models;
 
-namespace Geex.Hubs
+namespace ParkIRC.Hubs
 {
     public class ParkingHub : Hub
     {

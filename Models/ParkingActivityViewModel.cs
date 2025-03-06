@@ -1,6 +1,6 @@
 using System;
 
-namespace Geex.Models
+namespace ParkIRC.Models
 {
     public class ParkingActivityViewModel
     {

@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Geex.Models;
-using Geex;
+using ParkIRC.Models;
+using ParkIRC;
 
-namespace Geex.Data
+namespace ParkIRC.Data
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {

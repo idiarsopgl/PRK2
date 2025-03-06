@@ -1,4 +1,4 @@
-@model Geex.Models.DashboardViewModel
+@model ParkIRC.Models.DashboardViewModel
 @{
     ViewData["Title"] = "Parking Dashboard";
 }
@@ -162,7 +162,7 @@
                                 {
                                     foreach (var activity in recentActivities)
                                     {
-                                        var parkingActivity = activity as Geex.Models.ParkingActivityViewModel;
+                                        var parkingActivity = activity as ParkIRC.Models.ParkingActivityViewModel;
                                         if (parkingActivity != null)
                                         {
                                             <tr>

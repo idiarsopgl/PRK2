@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 
-namespace Geex.Controllers
+namespace ParkIRC.Controllers
 {
 	public class HomeController : Controller
 	{

@@ -3,11 +3,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Geex.Models;
-using Geex.Data;
+using ParkIRC.Models;
+using ParkIRC.Data;
 using System.Collections.Generic;
 
-namespace Geex.Controllers
+namespace ParkIRC.Controllers
 {
     public class ReportingController : Controller
     {

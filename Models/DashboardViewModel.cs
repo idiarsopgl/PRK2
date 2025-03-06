@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Geex.Models
+namespace ParkIRC.Models
 {
     public class DashboardViewModel
     {
