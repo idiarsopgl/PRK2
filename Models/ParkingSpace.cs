@@ -6,6 +6,16 @@ namespace ParkIRC.Models
 {
     public class ParkingSpace
     {
+        public ParkingSpace()
+        {
+            // Initialize collections
+            Transactions = new List<ParkingTransaction>();
+            
+            // Initialize required string properties
+            SpaceNumber = string.Empty;
+            SpaceType = string.Empty;
+        }
+        
         public int Id { get; set; }
         
         [Required]
@@ -21,7 +31,7 @@ namespace ParkIRC.Models
         
         public int? CurrentVehicleId { get; set; }
         
-        public virtual Vehicle CurrentVehicle { get; set; }
+        public virtual Vehicle? CurrentVehicle { get; set; }
         
         public virtual ICollection<ParkingTransaction> Transactions { get; set; }
     }

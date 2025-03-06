@@ -12,6 +12,7 @@ using ParkIRC.ViewModels;
 using ParkIRC.Services;
 using System.Text.Encodings.Web;
 using System.Linq;
+using System.Net;
 
 namespace ParkIRC.Controllers
 {
@@ -235,28 +236,36 @@ namespace ParkIRC.Controllers
             // For more information on how to enable account confirmation and password reset please
             // visit https://go.microsoft.com/fwlink/?LinkID=532713
             var code = await _userManager.GeneratePasswordResetTokenAsync(user);
+            code = WebUtility.UrlEncode(code);
             var callbackUrl = Url.Action(
                 "ResetPassword",
                 "Auth",
-                new { userId = user.Id, code = code },
+                new { email = user.Email, code },
                 protocol: Request.Scheme);
+
+            string emailBody = _emailTemplateService.GetPasswordResetTemplate(callbackUrl, user.FullName);
 
             await _emailService.SendEmailAsync(
                 model.Email,
-                "Reset Password",
-                $"Please reset your password by clicking here: <a href='{callbackUrl}'>link</a>");
+                "Reset Your Password - ParkIRC",
+                emailBody);
 
             return View("ForgotPasswordConfirmation");
         }
 
         [HttpGet]
-        public IActionResult ResetPassword(string? code = null)
+        public IActionResult ResetPassword(string email, string code = null)
         {
             if (code == null)
             {
                 return BadRequest("A code must be supplied for password reset.");
             }
-            var model = new ResetPasswordViewModel { Code = code };
+            
+            var model = new ResetPasswordViewModel { 
+                Email = email,
+                Code = code 
+            };
+            
             return View(model);
         }
 

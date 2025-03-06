@@ -5,6 +5,14 @@ namespace ParkIRC.Models
 {
     public class ParkingTransaction
     {
+        public ParkingTransaction()
+        {
+            // Initialize required string properties
+            TransactionNumber = string.Empty;
+            PaymentStatus = "Pending";
+            PaymentMethod = "Cash";
+        }
+        
         public int Id { get; set; }
         public int VehicleId { get; set; }
         public int ParkingSpaceId { get; set; }
@@ -26,7 +34,7 @@ namespace ParkIRC.Models
         
         public DateTime PaymentTime { get; set; }
         
-        public virtual Vehicle Vehicle { get; set; }
-        public virtual ParkingSpace ParkingSpace { get; set; }
+        public virtual Vehicle? Vehicle { get; set; }
+        public virtual ParkingSpace? ParkingSpace { get; set; }
     }
 }
