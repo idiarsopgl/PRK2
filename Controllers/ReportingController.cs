@@ -6,88 +6,132 @@ using Microsoft.EntityFrameworkCore;
 using ParkIRC.Models;
 using ParkIRC.Data;
 using System.Collections.Generic;
+using ParkIRC.Extensions;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
 
 namespace ParkIRC.Controllers
 {
+    [Authorize]
     public class ReportingController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<ReportingController> _logger;
 
-        public ReportingController(ApplicationDbContext context)
+        public ReportingController(ApplicationDbContext context, ILogger<ReportingController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task<IActionResult> Index(DateTime? startDate = null, DateTime? endDate = null)
         {
-            var query = _context.ParkingTransactions.AsQueryable();
-
-            if (startDate.HasValue)
+            try
             {
-                query = query.Where(t => t.EntryTime >= startDate.Value);
+                startDate ??= DateTime.Today.AddDays(-30);
+                endDate ??= DateTime.Today;
+
+                // Get transactions for the period
+                var transactions = await _context.ParkingTransactions
+                    .Where(t => t.EntryTime.Date >= startDate.Value.Date && 
+                               t.EntryTime.Date <= endDate.Value.Date)
+                    .ToListAsync();
+
+                // Calculate totals using client-side evaluation
+                var totalRevenue = transactions.Sum(t => t.TotalAmount);
+                var totalTransactions = transactions.Count;
+                var averageRevenue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+
+                // Calculate occupancy
+                var averageOccupancy = await CalculateAverageOccupancy(startDate, endDate);
+                var peakHours = await CalculatePeakHours(startDate, endDate);
+
+                var report = new
+                {
+                    StartDate = startDate.Value.ToString("yyyy-MM-dd"),
+                    EndDate = endDate.Value.ToString("yyyy-MM-dd"),
+                    TotalRevenue = totalRevenue,
+                    TotalTransactions = totalTransactions,
+                    AverageRevenue = averageRevenue,
+                    AverageOccupancy = averageOccupancy,
+                    PeakHours = peakHours,
+                    Transactions = transactions
+                };
+
+                return View(report);
             }
-
-            if (endDate.HasValue)
+            catch (Exception ex)
             {
-                query = query.Where(t => t.ExitTime <= endDate.Value);
+                _logger.LogError(ex, "Error generating report");
+                return View("Error", new ParkIRC.Models.ErrorViewModel 
+                { 
+                    Message = "Error generating report: " + ex.Message,
+                    RequestId = HttpContext.TraceIdentifier
+                });
             }
-
-            var transactions = await query.ToListAsync();
-            var report = new
-            {
-                TotalRevenue = transactions.Sum(t => t.Amount),
-                AverageOccupancy = await CalculateAverageOccupancy(startDate, endDate),
-                PeakHours = await CalculatePeakHours(startDate, endDate)
-            };
-
-            return View(report);
         }
 
         private async Task<double> CalculateAverageOccupancy(DateTime? startDate, DateTime? endDate)
         {
             var totalSpaces = await _context.ParkingSpaces.CountAsync();
+            if (totalSpaces == 0) return 0;
+
             var occupiedSpacesCount = await _context.ParkingSpaces
                 .CountAsync(s => s.IsOccupied);
 
-            return (double)occupiedSpacesCount / totalSpaces * 100;
+            return Math.Round((double)occupiedSpacesCount / totalSpaces * 100, 2);
         }
 
         private async Task<string> CalculatePeakHours(DateTime? startDate, DateTime? endDate)
         {
             var transactions = await _context.ParkingTransactions
-                .Where(t => (!startDate.HasValue || t.EntryTime >= startDate.Value) &&
-                           (!endDate.HasValue || t.ExitTime <= endDate.Value))
+                .Where(t => (!startDate.HasValue || t.EntryTime.Date >= startDate.Value.Date) &&
+                           (!endDate.HasValue || t.EntryTime.Date <= endDate.Value.Date))
                 .ToListAsync();
+
+            if (!transactions.Any())
+                return "No data available";
 
             var hourlyCount = transactions
                 .GroupBy(t => t.EntryTime.Hour)
                 .Select(g => new { Hour = g.Key, Count = g.Count() })
                 .OrderByDescending(x => x.Count)
-                .FirstOrDefault();
+                .First();
 
-            return hourlyCount != null
-                ? $"{hourlyCount.Hour:D2}:00 - {hourlyCount.Hour:D2}:59"
-                : "No data available";
+            return $"{hourlyCount.Hour:D2}:00 - {hourlyCount.Hour:D2}:59 ({hourlyCount.Count} vehicles)";
         }
 
         public async Task<IActionResult> DailyRevenue(DateTime? date = null)
         {
-            var queryDate = date ?? DateTime.Today;
-            var nextDay = queryDate.AddDays(1);
-
-            var transactions = await _context.ParkingTransactions
-                .Where(t => t.ExitTime >= queryDate && t.ExitTime < nextDay)
-                .ToListAsync();
-
-            var report = new
+            try
             {
-                Date = queryDate.ToString("yyyy-MM-dd"),
-                TotalRevenue = transactions.Sum(t => t.TotalAmount),
-                TransactionCount = transactions.Count,
-                AverageAmount = transactions.Any() ? transactions.Average(t => t.TotalAmount) : 0
-            };
+                var queryDate = date ?? DateTime.Today;
+                var nextDay = queryDate.AddDays(1);
 
-            return View(report);
+                // Get transactions for the day
+                var transactions = await _context.ParkingTransactions
+                    .Where(t => t.EntryTime.Date == queryDate.Date)
+                    .ToListAsync();
+
+                var totalRevenue = transactions.Sum(t => t.TotalAmount);
+                var transactionCount = transactions.Count;
+                var averageAmount = transactionCount > 0 ? totalRevenue / transactionCount : 0;
+
+                var report = new
+                {
+                    Date = queryDate.ToString("yyyy-MM-dd"),
+                    TotalRevenue = totalRevenue,
+                    TransactionCount = transactionCount,
+                    AverageAmount = averageAmount,
+                    Transactions = transactions
+                };
+
+                return View(report);
+            }
+            catch (Exception ex)
+            {
+                return View("Error", new ErrorViewModel { Message = "Error generating daily revenue report: " + ex.Message });
+            }
         }
 
         public async Task<IActionResult> OccupancyReport(DateTime? startDate = null, DateTime? endDate = null)
@@ -112,41 +156,91 @@ namespace ParkIRC.Controllers
 
         public async Task<IActionResult> VehicleTypeStatistics(DateTime? startDate = null, DateTime? endDate = null)
         {
-            var start = startDate ?? DateTime.Today.AddDays(-30);
-            var end = endDate ?? DateTime.Today;
+            try
+            {
+                startDate ??= DateTime.Today.AddDays(-30);
+                endDate ??= DateTime.Today;
 
-            var vehicleTypes = await _context.Vehicles
-                .Where(v => v.EntryTime.Date >= start.Date && v.EntryTime.Date <= end.Date)
-                .GroupBy(v => v.VehicleType)
-                .Select(g => new
-                {
-                    VehicleType = g.Key,
-                    Count = g.Count(),
-                    Revenue = g.Sum(v => v.Transactions.Sum(t => t.TotalAmount))
-                })
-                .ToListAsync();
+                // Get all transactions for the period
+                var transactions = await _context.ParkingTransactions
+                    .Include(t => t.Vehicle)
+                    .Where(t => t.EntryTime.Date >= startDate.Value.Date && 
+                               t.EntryTime.Date <= endDate.Value.Date &&
+                               t.Vehicle != null)
+                    .ToListAsync();
 
-            return View(vehicleTypes);
+                // Group and calculate statistics on the client side
+                var statistics = transactions
+                    .GroupBy(t => t.Vehicle?.VehicleType ?? "Unknown")
+                    .Select(g => new
+                    {
+                        VehicleType = g.Key,
+                        Count = g.Count(),
+                        Revenue = g.Sum(t => t.TotalAmount),
+                        AverageRevenue = g.Average(t => t.TotalAmount)
+                    })
+                    .OrderByDescending(x => x.Count)
+                    .ToList();
+
+                return View(statistics);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating vehicle type statistics");
+                return View("Error", new ErrorViewModel { Message = "Error generating statistics" });
+            }
         }
 
         public async Task<IActionResult> PeakHourAnalysis(DateTime? date = null)
         {
-            var queryDate = date ?? DateTime.Today;
-            var nextDay = queryDate.AddDays(1);
+            try
+            {
+                var queryDate = date ?? DateTime.Today;
 
-            var hourlyData = await _context.ParkingTransactions
-                .Where(t => t.EntryTime >= queryDate && t.EntryTime < nextDay)
-                .GroupBy(t => t.EntryTime.Hour)
-                .Select(g => new
+                // Get all transactions for the day
+                var transactions = await _context.ParkingTransactions
+                    .Where(t => t.EntryTime.Date == queryDate.Date)
+                    .ToListAsync();
+
+                // Group and calculate statistics on the client side
+                var hourlyAnalysis = transactions
+                    .GroupBy(t => t.EntryTime.Hour)
+                    .Select(g => new
+                    {
+                        Hour = $"{g.Key:D2}:00",
+                        Count = g.Count(),
+                        Revenue = g.Sum(t => t.TotalAmount),
+                        AverageRevenue = g.Count() > 0 ? g.Average(t => t.TotalAmount) : 0m
+                    })
+                    .OrderBy(x => x.Hour)
+                    .ToList();
+
+                // Fill in missing hours with zero values
+                var fullHourlyData = Enumerable.Range(0, 24)
+                    .Select(hour => hourlyAnalysis.FirstOrDefault(h => h.Hour == $"{hour:D2}:00") ?? new
+                    {
+                        Hour = $"{hour:D2}:00",
+                        Count = 0,
+                        Revenue = 0m,
+                        AverageRevenue = 0m
+                    })
+                    .ToList();
+
+                var viewModel = new
                 {
-                    Hour = g.Key,
-                    Count = g.Count(),
-                    Revenue = g.Sum(t => t.TotalAmount)
-                })
-                .OrderBy(h => h.Hour)
-                .ToListAsync();
+                    Date = queryDate.ToString("yyyy-MM-dd"),
+                    HourlyData = fullHourlyData,
+                    TotalRevenue = transactions.Sum(t => t.TotalAmount),
+                    TotalTransactions = transactions.Count,
+                    PeakHour = fullHourlyData.OrderByDescending(h => h.Count).First()
+                };
 
-            return View(hourlyData);
+                return View(viewModel);
+            }
+            catch (Exception ex)
+            {
+                return View("Error", new ErrorViewModel { Message = "Error generating peak hour analysis: " + ex.Message });
+            }
         }
     }
 }

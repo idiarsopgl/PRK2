@@ -80,12 +80,12 @@
                             <small class="text-muted">Format: [Huruf] [Angka] [Huruf], contoh: B 1234 ABC</small>
                         </div>
                         <div class="mb-3">
-                            <label for="driverName" class="form-label">Nama Pengemudi</label>
-                            <input type="text" class="form-control" id="driverName" name="driverName" required />
+                            <label for="driverName" class="form-label">Nama Pengemudi (Opsional)</label>
+                            <input type="text" class="form-control" id="driverName" name="driverName" />
                         </div>
                         <div class="mb-3">
-                            <label for="contactNumber" class="form-label">Nomor Kontak</label>
-                            <input type="tel" class="form-control" id="contactNumber" name="contactNumber" required />
+                            <label for="contactNumber" class="form-label">Nomor Kontak (Opsional)</label>
+                            <input type="tel" class="form-control" id="contactNumber" name="contactNumber" />
                         </div>
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save me-2"></i>Simpan
@@ -198,39 +198,51 @@
         });
 
         // ANPR Detection Simulation
-        captureButton.addEventListener('click', () => {
-            // Capture image from video feed
+        captureButton.addEventListener('click', async () => {
+            const context = canvas.getContext('2d');
             canvas.width = videoElement.videoWidth;
             canvas.height = videoElement.videoHeight;
-            canvas.getContext('2d').drawImage(videoElement, 0, 0);
-
-            // Simulate ANPR processing
+            context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            
+            // Always save the captured image
+            const capturedImage = canvas.toDataURL('image/jpeg');
+            document.getElementById('capturedImage').src = capturedImage;
+            document.getElementById('capturedImageContainer').classList.remove('d-none');
+            
+            // Show processing message
             anprResult.className = 'alert alert-info';
-            anprResult.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
-
-            // Simulate random success/failure
-            setTimeout(() => {
-                const success = Math.random() > 0.3; // 70% success rate
-                if (success) {
-                    // Generate a random plate number in the correct format
-                    const areas = ['B', 'D', 'F', 'L', 'N', 'R', 'W'];
-                    const randomArea = areas[Math.floor(Math.random() * areas.length)];
-                    const randomNumber = Math.floor(Math.random() * 9000) + 1000;
-                    const randomLetters = String.fromCharCode(65 + Math.floor(Math.random() * 26)) +
-                                        String.fromCharCode(65 + Math.floor(Math.random() * 26)) +
-                                        String.fromCharCode(65 + Math.floor(Math.random() * 26));
-                    const detectedPlateNumber = `${randomArea} ${randomNumber} ${randomLetters}`;
-
+            anprResult.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Memproses gambar...';
+            
+            try {
+                // Try to detect the plate number
+                const response = await fetch('/Parking/DetectPlateNumber', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                    },
+                    body: JSON.stringify({ imageData: capturedImage })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.plateNumber) {
                     anprResult.className = 'alert alert-success';
-                    anprResult.innerHTML = '<i class="fas fa-check-circle me-2"></i>Plat nomor terdeteksi!';
+                    anprResult.innerHTML = '<i class="fas fa-check-circle me-2"></i>Plat nomor terdeteksi';
                     detectedPlate.classList.remove('d-none');
-                    plateNumberElement.textContent = detectedPlateNumber;
+                    plateNumberElement.textContent = result.plateNumber;
+                    vehicleNumberInput.value = result.plateNumber;
                 } else {
                     anprResult.className = 'alert alert-warning';
-                    anprResult.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Gagal mendeteksi plat nomor. Silakan coba lagi atau masukkan secara manual.';
+                    anprResult.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Gagal mendeteksi plat nomor. Silakan masukkan secara manual.';
                     detectedPlate.classList.add('d-none');
                 }
-            }, 1500);
+            } catch (error) {
+                console.error('Error processing image:', error);
+                anprResult.className = 'alert alert-warning';
+                anprResult.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Gagal memproses gambar. Silakan masukkan nomor plat secara manual.';
+                detectedPlate.classList.add('d-none');
+            }
         });
 
         // Use detected plate number
@@ -257,11 +269,9 @@
             // Validate form inputs
             const vehicleType = document.getElementById('vehicleType');
             const vehicleNumber = document.getElementById('vehicleNumber');
-            const driverName = document.getElementById('driverName');
-            const contactNumber = document.getElementById('contactNumber');
 
             // Reset previous error states
-            [vehicleType, vehicleNumber, driverName, contactNumber].forEach(input => {
+            [vehicleType, vehicleNumber].forEach(input => {
                 input.classList.remove('is-invalid');
                 const feedback = input.nextElementSibling;
                 if (feedback && feedback.classList.contains('invalid-feedback')) {
@@ -283,16 +293,6 @@
                 hasError = true;
             }
 
-            if (!driverName.value.trim()) {
-                showFieldError(driverName, 'Nama pengemudi wajib diisi');
-                hasError = true;
-            }
-
-            if (!contactNumber.value.trim()) {
-                showFieldError(contactNumber, 'Nomor kontak wajib diisi');
-                hasError = true;
-            }
-
             if (hasError) {
                 Swal.fire({
                     icon: 'error',
@@ -311,8 +311,8 @@
                 const formData = {
                     vehicleType: vehicleType.value,
                     vehicleNumber: vehicleNumber.value.toUpperCase(),
-                    driverName: driverName.value.trim(),
-                    contactNumber: contactNumber.value.trim()
+                    driverName: document.getElementById('driverName').value.trim() || null,
+                    contactNumber: document.getElementById('contactNumber').value.trim() || null
                 };
 
                 console.log('Submitting form data:', formData);

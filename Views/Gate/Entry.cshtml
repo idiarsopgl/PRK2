@@ -1,0 +1,185 @@
+@{
+    ViewData["Title"] = "Gate Entry";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Kamera</h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <video id="camera" class="img-fluid" style="max-width: 100%; border: 1px solid #ddd;"></video>
+                    </div>
+                    <div class="text-center">
+                        <button type="button" class="btn btn-primary" id="captureBtn">
+                            <i class="fas fa-camera me-1"></i> Ambil Foto
+                        </button>
+                    </div>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Data Kendaraan</h6>
+                </div>
+                <div class="card-body">
+                    <form id="entryForm">
+                        <div class="mb-3">
+                            <label class="form-label">Nomor Kendaraan</label>
+                            <input type="text" class="form-control" name="vehicleNumber" required 
+                                   pattern="[A-Z]{1,2}\s\d{1,4}\s[A-Z]{1,3}"
+                                   placeholder="Contoh: B 1234 ABC">
+                            <div class="form-text">Format: [Huruf] [Angka] [Huruf], contoh: B 1234 ABC</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Jenis Kendaraan</label>
+                            <select class="form-select" name="vehicleType" required>
+                                <option value="">Pilih jenis kendaraan</option>
+                                <option value="Car">Mobil</option>
+                                <option value="Motorcycle">Motor</option>
+                                <option value="Truck">Truk</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Nama Pengemudi</label>
+                            <input type="text" class="form-control" name="driverName" placeholder="Opsional">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Nomor Telepon</label>
+                            <input type="tel" class="form-control" name="phoneNumber" placeholder="Opsional">
+                        </div>
+                        <input type="hidden" name="base64Image" id="base64Image">
+                        <button type="submit" class="btn btn-success" id="submitBtn" disabled>
+                            <i class="fas fa-check me-1"></i> Proses Masuk
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Modal -->
+    <div class="modal fade" id="resultModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Tiket Parkir</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div id="ticketContent">
+                        <h4 class="mb-3">Tiket Parkir</h4>
+                        <img id="barcodeImage" class="img-fluid mb-3" style="max-width: 200px;">
+                        <p class="mb-1"><strong>Nomor Tiket:</strong> <span id="ticketNumber"></span></p>
+                        <p class="mb-1"><strong>Waktu Masuk:</strong> <span id="entryTime"></span></p>
+                        <div class="alert alert-success mt-3">
+                            <i class="fas fa-check-circle me-1"></i> Gate terbuka
+                        </div>
+                    </div>
+                    <div id="errorContent" style="display: none;">
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-1"></i>
+                            <span id="errorMessage"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i> Cetak
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let stream;
+        const video = document.getElementById('camera');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const base64Image = document.getElementById('base64Image');
+        const entryForm = document.getElementById('entryForm');
+        const resultModal = new bootstrap.Modal(document.getElementById('resultModal'));
+
+        // Start camera
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: 1280,
+                        height: 720,
+                        facingMode: "environment"
+                    } 
+                });
+                video.srcObject = stream;
+                video.play();
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                alert('Tidak dapat mengakses kamera. Pastikan kamera tersedia dan izin diberikan.');
+            }
+        }
+
+        // Capture photo
+        captureBtn.addEventListener('click', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            base64Image.value = canvas.toDataURL('image/jpeg');
+            submitBtn.disabled = false;
+        });
+
+        // Handle form submission
+        entryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(entryForm);
+            try {
+                const response = await fetch('/Gate/ProcessEntry', {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('ticketNumber').textContent = result.ticketNumber;
+                    document.getElementById('entryTime').textContent = new Date(result.entryTime).toLocaleString();
+                    document.getElementById('barcodeImage').src = result.barcodeImageUrl;
+                    document.getElementById('ticketContent').style.display = 'block';
+                    document.getElementById('errorContent').style.display = 'none';
+                } else {
+                    document.getElementById('ticketContent').style.display = 'none';
+                    document.getElementById('errorContent').style.display = 'block';
+                    document.getElementById('errorMessage').textContent = result.error;
+                }
+                
+                resultModal.show();
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Terjadi kesalahan saat memproses data.');
+            }
+        });
+
+        // Start camera when page loads
+        startCamera();
+
+        // Clean up when page unloads
+        window.addEventListener('unload', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+} 

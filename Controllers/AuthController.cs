@@ -18,15 +18,15 @@ namespace ParkIRC.Controllers
 {
     public class AuthController : Controller
     {
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly UserManager<Operator> _userManager;
+        private readonly SignInManager<Operator> _signInManager;
         private readonly ILogger<AuthController> _logger;
         private readonly IEmailService _emailService;
         private readonly IEmailTemplateService _emailTemplateService;
 
         public AuthController(
-            UserManager<ApplicationUser> userManager,
-            SignInManager<ApplicationUser> signInManager,
+            UserManager<Operator> userManager,
+            SignInManager<Operator> signInManager,
             ILogger<AuthController> logger,
             IEmailService emailService,
             IEmailTemplateService emailTemplateService)
@@ -96,11 +96,14 @@ namespace ParkIRC.Controllers
         {
             if (ModelState.IsValid)
             {
-                var user = new ApplicationUser
+                var user = new Operator
                 {
                     UserName = model.Email,
                     Email = model.Email,
-                    FullName = model.FullName
+                    FullName = model.FullName,
+                    IsActive = true,
+                    JoinDate = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow
                 };
 
                 var result = await _userManager.CreateAsync(user, model.Password);
@@ -241,13 +244,10 @@ namespace ParkIRC.Controllers
             // visit https://go.microsoft.com/fwlink/?LinkID=532713
             var code = await _userManager.GeneratePasswordResetTokenAsync(user);
             code = WebUtility.UrlEncode(code);
-            var callbackUrl = Url.Action(
-                "ResetPassword",
-                "Auth",
-                new { email = user.Email, code },
-                protocol: Request.Scheme);
-
-            string emailBody = _emailTemplateService.GetPasswordResetTemplate(callbackUrl, user.FullName);
+            var resetLink = Url.Action("ResetPassword", "Auth", new { userId = user.Id, code = code }, Request.Scheme);
+            var userName = user.UserName ?? user.Email ?? "User";
+            
+            var emailBody = _emailTemplateService.GetPasswordResetTemplate(resetLink ?? string.Empty, userName);
 
             await _emailService.SendEmailAsync(
                 model.Email,
@@ -258,7 +258,7 @@ namespace ParkIRC.Controllers
         }
 
         [HttpGet]
-        public IActionResult ResetPassword(string email, string code = null)
+        public IActionResult ResetPassword(string email, string? code = null)
         {
             if (code == null)
             {

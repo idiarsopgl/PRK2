@@ -1,0 +1,94 @@
+@model ParkIRC.Models.Operator
+
+@{
+    ViewData["Title"] = "Edit Operator";
+}
+
+<div class="container-fluid">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-user-edit me-2"></i>Edit Operator
+            </h6>
+        </div>
+        <div class="card-body">
+            <form asp-action="EditOperator" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="CreatedAt" />
+                <input type="hidden" asp-for="Email" />
+                <input type="hidden" asp-for="UserName" />
+                <input type="hidden" asp-for="NormalizedUserName" />
+                <input type="hidden" asp-for="NormalizedEmail" />
+                <input type="hidden" asp-for="EmailConfirmed" />
+                <input type="hidden" asp-for="SecurityStamp" />
+                <input type="hidden" asp-for="ConcurrencyStamp" />
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="FullName" class="control-label">Nama Lengkap</label>
+                            <input asp-for="FullName" class="form-control" />
+                            <span asp-validation-for="FullName" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="BadgeNumber" class="control-label">Nomor Badge</label>
+                            <input asp-for="BadgeNumber" class="form-control" />
+                            <span asp-validation-for="BadgeNumber" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="Email" class="control-label">Email</label>
+                            <input asp-for="Email" class="form-control" readonly />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="PhoneNumber" class="control-label">Nomor Telepon</label>
+                            <input asp-for="PhoneNumber" class="form-control" />
+                            <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="JoinDate" class="control-label">Tanggal Bergabung</label>
+                            <input asp-for="JoinDate" class="form-control" type="date" readonly />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="IsActive" class="control-label">Status</label>
+                            <div class="form-check">
+                                <input asp-for="IsActive" class="form-check-input" />
+                                <label class="form-check-label" for="IsActive">Aktif</label>
+                            </div>
+                            <span asp-validation-for="IsActive" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Simpan
+                    </button>
+                    <a asp-action="Operators" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Kembali
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+} 

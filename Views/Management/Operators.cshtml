@@ -1,4 +1,4 @@
-@model IEnumerable<ParkIRC.Models.ApplicationUser>
+@model IEnumerable<ParkIRC.Models.Operator>
 
 @{
     ViewData["Title"] = "Kelola Operator";
@@ -18,9 +18,11 @@
                     <thead>
                         <tr>
                             <th>Nama</th>
+                            <th>Badge</th>
                             <th>Email</th>
-                            <th>Username</th>
-                            <th>Status Email</th>
+                            <th>No. Telepon</th>
+                            <th>Tanggal Bergabung</th>
+                            <th>Status</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -29,28 +31,22 @@
                         {
                             <tr>
                                 <td>@item.FullName</td>
+                                <td>@item.BadgeNumber</td>
                                 <td>@item.Email</td>
-                                <td>@item.UserName</td>
+                                <td>@item.PhoneNumber</td>
+                                <td>@item.JoinDate.ToString("dd/MM/yyyy")</td>
                                 <td>
-                                    @if (item.EmailConfirmed)
-                                    {
-                                        <span class="badge bg-success">Terverifikasi</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-warning text-dark">Belum Terverifikasi</span>
-                                    }
+                                    <span class="badge @(item.IsActive ? "bg-success" : "bg-danger")">
+                                        @(item.IsActive ? "Aktif" : "Nonaktif")
+                                    </span>
                                 </td>
                                 <td>
-                                    <div class="btn-group" role="group">
-                                        <a href="#" class="btn btn-sm btn-info" onclick="alert('Fitur edit profil belum tersedia')">
+                                    <div class="btn-group">
+                                        <a href="@Url.Action("EditOperator", new { id = item.Id })" class="btn btn-sm btn-info">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="#" class="btn btn-sm btn-warning" onclick="alert('Fitur reset password belum tersedia')">
-                                            <i class="fas fa-key"></i>
-                                        </a>
-                                        <button type="button" class="btn btn-sm btn-danger" onclick="alert('Fitur deaktivasi akun belum tersedia')">
-                                            <i class="fas fa-user-slash"></i>
+                                        <button type="button" class="btn btn-sm btn-danger delete-operator" data-id="@item.Id">
+                                            <i class="fas fa-trash"></i>
                                         </button>
                                     </div>
                                 </td>
@@ -69,6 +65,23 @@
             $('#operatorsTable').DataTable({
                 language: {
                     url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json'
+                },
+                order: [[4, 'desc']], // Sort by join date by default
+                columnDefs: [
+                    { orderable: false, targets: 6 } // Disable sorting for action column
+                ]
+            });
+
+            $('.delete-operator').click(function() {
+                var id = $(this).data('id');
+                if (confirm('Apakah Anda yakin ingin menghapus operator ini?')) {
+                    $.post('@Url.Action("DeleteOperator")', { id: id }, function(result) {
+                        if (result.success) {
+                            location.reload();
+                        } else {
+                            alert('Gagal menghapus operator: ' + result.message);
+                        }
+                    });
                 }
             });
         });

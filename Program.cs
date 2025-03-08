@@ -21,7 +21,7 @@ builder.Services.AddScoped<IParkingService, ParkingService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
-builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
+builder.Services.AddIdentity<Operator, IdentityRole>(options => {
     // Password settings
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = true;
@@ -70,7 +70,7 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
-        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+        var userManager = services.GetRequiredService<UserManager<Operator>>();
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
         
         // Seed parking spaces
@@ -94,7 +94,7 @@ using (var scope = app.Services.CreateScope())
                 VehicleNumber = "ABC123", 
                 VehicleType = "Sedan", 
                 DriverName = "John Doe", 
-                ContactNumber = "555-1234",
+                PhoneNumber = "555-1234",
                 EntryTime = DateTime.Now.AddHours(-3),
                 IsParked = true
             };
@@ -104,7 +104,7 @@ using (var scope = app.Services.CreateScope())
                 VehicleNumber = "XYZ789", 
                 VehicleType = "SUV", 
                 DriverName = "Jane Smith", 
-                ContactNumber = "555-5678",
+                PhoneNumber = "555-5678",
                 EntryTime = DateTime.Now.AddHours(-5),
                 ExitTime = DateTime.Now.AddHours(-2),
                 IsParked = false
@@ -115,7 +115,7 @@ using (var scope = app.Services.CreateScope())
                 VehicleNumber = "DEF456", 
                 VehicleType = "Compact", 
                 DriverName = "Bob Johnson", 
-                ContactNumber = "555-9012",
+                PhoneNumber = "555-9012",
                 EntryTime = DateTime.Now.AddHours(-1),
                 IsParked = true
             };
@@ -166,12 +166,16 @@ using (var scope = app.Services.CreateScope())
             // Create a default admin user
             if (await userManager.FindByEmailAsync("admin@parkingsystem.com") == null)
             {
-                var adminUser = new ApplicationUser
+                var adminUser = new Operator
                 {
                     UserName = "admin@parkingsystem.com",
                     Email = "admin@parkingsystem.com",
                     FullName = "System Administrator",
-                    EmailConfirmed = true
+                    Name = "System Administrator",
+                    EmailConfirmed = true,
+                    IsActive = true,
+                    JoinDate = DateTime.Today,
+                    CreatedAt = DateTime.UtcNow
                 };
                 
                 var result = await userManager.CreateAsync(adminUser, "Admin@123");

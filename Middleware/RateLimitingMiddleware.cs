@@ -8,7 +8,7 @@ namespace ParkIRC.Middleware
     {
         private readonly RequestDelegate _next;
         private static readonly ConcurrentDictionary<string, DateTime> _lastRequestTimes = new();
-        private static readonly TimeSpan _requestInterval = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan _requestInterval = TimeSpan.FromMilliseconds(100);
         
         private static readonly string[] _excludedPaths = new[] 
         { 
@@ -18,7 +18,25 @@ namespace ParkIRC.Middleware
             "/Management/DeleteParkingSlot",
             "/Rates/Create",
             "/Rates/Edit",
-            "/Rates/Delete"
+            "/Rates/Delete",
+            "/Gate/Entry",
+            "/Gate/Exit",
+            "/Gate/ProcessEntry",
+            "/Gate/ProcessExit",
+            "/Auth/Login",
+            "/Auth/Logout",
+            "/Parking/Dashboard",
+            "/Management/ParkingSlots",
+            "/Management/Operators",
+            "/Management/Shifts",
+            "/Reports",
+            "/Settings",
+            "/static/",
+            "/lib/",
+            "/css/",
+            "/js/",
+            "/images/",
+            "/favicon.ico"
         };
 
         public RateLimitingMiddleware(RequestDelegate next)

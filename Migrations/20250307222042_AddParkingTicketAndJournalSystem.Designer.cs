@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ParkIRC.Data;
 
@@ -10,9 +11,11 @@ using ParkIRC.Data;
 namespace ParkIRC.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250307222042_AddParkingTicketAndJournalSystem")]
+    partial class AddParkingTicketAndJournalSystem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
@@ -160,35 +163,7 @@ namespace ParkIRC.Migrations
                     b.ToTable("OperatorShifts", (string)null);
                 });
 
-            modelBuilder.Entity("ParkIRC.Models.Journal", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("OperatorId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OperatorId");
-
-                    b.ToTable("Journals");
-                });
-
-            modelBuilder.Entity("ParkIRC.Models.Operator", b =>
+            modelBuilder.Entity("ParkIRC.Models.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("TEXT");
@@ -196,18 +171,11 @@ namespace ParkIRC.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("BadgeNumber")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Email")
-                        .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
@@ -215,30 +183,12 @@ namespace ParkIRC.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("FullName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("JoinDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("LastModifiedBy")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("NormalizedEmail")
@@ -257,9 +207,6 @@ namespace ParkIRC.Migrations
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("PhotoPath")
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("TEXT");
@@ -283,61 +230,120 @@ namespace ParkIRC.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("ParkIRC.Models.ParkingRateConfiguration", b =>
+            modelBuilder.Entity("ParkIRC.Models.Journal", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<decimal>("BaseRate")
+                    b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<string>("Description")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("CreatedBy")
+                    b.Property<string>("JournalNumber")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("DailyRate")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("EffectiveFrom")
+                    b.Property<string>("OperatorId")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime?>("EffectiveTo")
+                    b.Property<int?>("ParkingTicketId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ShiftId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("TransactionDate")
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("HourlyRate")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("VehicleId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperatorId");
+
+                    b.HasIndex("ParkingTicketId");
+
+                    b.HasIndex("ShiftId");
+
+                    b.HasIndex("VehicleId");
+
+                    b.ToTable("Journals");
+                });
+
+            modelBuilder.Entity("ParkIRC.Models.Operator", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BadgeNumber")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime?>("LastModifiedAt")
+                    b.Property<DateTime>("JoinDate")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("LastModifiedBy")
-                        .IsRequired()
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("MonthlyRate")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("PenaltyRate")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("VehicleType")
-                        .IsRequired()
-                        .HasMaxLength(50)
+                    b.Property<string>("NormalizedEmail")
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("WeeklyRate")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<string>("NormalizedUserName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PhotoPath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserName")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.ToTable("ParkingRates");
+                    b.ToTable("Operators");
                 });
 
             modelBuilder.Entity("ParkIRC.Models.ParkingSpace", b =>
@@ -561,7 +567,7 @@ namespace ParkIRC.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
-                    b.HasOne("ParkIRC.Models.Operator", null)
+                    b.HasOne("ParkIRC.Models.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -570,7 +576,7 @@ namespace ParkIRC.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
-                    b.HasOne("ParkIRC.Models.Operator", null)
+                    b.HasOne("ParkIRC.Models.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -585,7 +591,7 @@ namespace ParkIRC.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("ParkIRC.Models.Operator", null)
+                    b.HasOne("ParkIRC.Models.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -594,7 +600,7 @@ namespace ParkIRC.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.HasOne("ParkIRC.Models.Operator", null)
+                    b.HasOne("ParkIRC.Models.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -621,10 +627,31 @@ namespace ParkIRC.Migrations
                     b.HasOne("ParkIRC.Models.Operator", "Operator")
                         .WithMany()
                         .HasForeignKey("OperatorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ParkIRC.Models.ParkingTicket", "ParkingTicket")
+                        .WithMany()
+                        .HasForeignKey("ParkingTicketId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ParkIRC.Models.Shift", "Shift")
+                        .WithMany()
+                        .HasForeignKey("ShiftId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ParkIRC.Models.Vehicle", "Vehicle")
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Operator");
+
+                    b.Navigation("ParkingTicket");
+
+                    b.Navigation("Shift");
+
+                    b.Navigation("Vehicle");
                 });
 
             modelBuilder.Entity("ParkIRC.Models.ParkingTicket", b =>

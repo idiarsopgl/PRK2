@@ -11,6 +11,7 @@ namespace ParkIRC.Models
             TransactionNumber = string.Empty;
             PaymentStatus = "Pending";
             PaymentMethod = "Cash";
+            Status = "Active";
         }
         
         public int Id { get; set; }
@@ -31,6 +32,9 @@ namespace ParkIRC.Models
         
         [Required]
         public string PaymentMethod { get; set; }
+        
+        [Required]
+        public string Status { get; set; }
         
         public DateTime PaymentTime { get; set; }
         

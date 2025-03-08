@@ -88,12 +88,12 @@
                     <thead>
                         <tr>
                             <th>Nama Shift</th>
+                            <th>Tanggal</th>
                             <th>Waktu Mulai</th>
                             <th>Waktu Selesai</th>
-                            <th>Deskripsi</th>
                             <th>Status</th>
-                            <th>Dibuat Oleh</th>
-                            <th>Terakhir Diubah</th>
+                            <th>Operator</th>
+                            <th>Kendaraan</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -101,10 +101,10 @@
                         @foreach (var item in Model)
                         {
                             <tr>
-                                <td>@item.Name</td>
+                                <td>@item.ShiftName</td>
+                                <td>@item.Date.ToString("dd/MM/yyyy")</td>
                                 <td>@item.StartTime.ToString(@"hh\:mm")</td>
                                 <td>@item.EndTime.ToString(@"hh\:mm")</td>
-                                <td>@item.Description</td>
                                 <td>
                                     @if (item.IsActive)
                                     {
@@ -116,20 +116,28 @@
                                     }
                                 </td>
                                 <td>
-                                    @item.CreatedBy
-                                    <br />
-                                    <small class="text-muted">@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
-                                </td>
-                                <td>
-                                    @if (item.LastModifiedBy != null)
+                                    @if (item.Operators != null && item.Operators.Any())
                                     {
-                                        @item.LastModifiedBy
-                                        <br />
-                                        <small class="text-muted">@item.LastModifiedAt?.ToString("dd/MM/yyyy HH:mm")</small>
+                                        <ul class="list-unstyled mb-0">
+                                            @foreach (var op in item.Operators)
+                                            {
+                                                <li>@op.FullName</li>
+                                            }
+                                        </ul>
                                     }
                                     else
                                     {
-                                        <span>-</span>
+                                        <span class="text-muted">Belum ada operator</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (item.Vehicles != null && item.Vehicles.Any())
+                                    {
+                                        <span class="badge bg-info">@item.Vehicles.Count kendaraan</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Tidak ada kendaraan</span>
                                     }
                                 </td>
                                 <td>
@@ -151,7 +159,7 @@
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                 </div>
                                                 <div class="modal-body">
-                                                    Apakah Anda yakin ingin menghapus shift <strong>@item.Name</strong>?
+                                                    Apakah Anda yakin ingin menghapus shift <strong>@item.ShiftName</strong>?
                                                 </div>
                                                 <div class="modal-footer">
                                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -178,7 +186,8 @@
             $('#shiftsTable').DataTable({
                 language: {
                     url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json'
-                }
+                },
+                order: [[1, 'desc'], [2, 'asc']]
             });
         });
     </script>

@@ -1,242 +1,126 @@
-@model ParkIRC.Models.DashboardViewModel
+@using ParkIRC.Models
+@model DashboardViewModel
 @{
-    ViewData["Title"] = "Parking Dashboard";
-    
-    // Prepare data for charts
-    var hourlyOccupancyData = new { 
-        Labels = Model.HourlyOccupancy.Select(x => x.Hour).ToArray(),
-        Data = Model.HourlyOccupancy.Select(x => x.OccupancyPercentage).ToArray()
-    };
-    
-    // Get vehicle type distribution data
-    var vehicleTypes = new Dictionary<string, int>();
-    foreach (var activity in Model.RecentActivity.Where(a => a.ActionType == "Entry"))
-    {
-        var type = activity.VehicleType;
-        if (!vehicleTypes.ContainsKey(type))
-            vehicleTypes[type] = 0;
-        vehicleTypes[type]++;
-    }
-    
-    var vehicleTypeData = new {
-        Labels = vehicleTypes.Keys.ToArray(),
-        Data = vehicleTypes.Values.ToArray()
-    };
+    ViewData["Title"] = "Dashboard";
 }
 
 <div class="container-fluid">
-    <!-- Error Alert -->
-    @if (ViewData["ErrorMessage"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
-            <strong>Error!</strong> @ViewData["ErrorMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
-
-    <!-- Loading Indicator -->
-    <div id="loadingIndicator" class="text-center d-none">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <p>Updating dashboard data...</p>
-    </div>
-    
-    <div class="row">
-        <!-- Total Spaces Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">TOTAL RUANG</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalSpaces">@Model.TotalSpaces</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-car fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Available Spaces Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">RUANG TERSEDIA</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="availableSpaces">@Model.AvailableSpaces</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Occupied Spaces Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">RUANG TERPAKAI</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="occupiedSpaces">@(Model.TotalSpaces - Model.AvailableSpaces)</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-car-side fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Today's Revenue Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">PENDAPATAN HARI INI</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="todayRevenue">Rp @Model.DailyRevenue.ToString("N0")</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Action Buttons -->
+    <!-- Summary Cards -->
     <div class="row mb-4">
-        <div class="col-12">
-            <a href="@Url.Action("ExportDashboardData", "Parking")" class="btn btn-sm btn-primary">
-                <i class="fas fa-download fa-sm text-white-50"></i> Export Laporan
-            </a>
-            <button id="refreshDashboard" class="btn btn-sm btn-info">
-                <i class="fas fa-sync fa-sm text-white-50"></i> Refresh Data
-            </button>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Total Spaces</h6>
+                            <h3 class="mt-2 mb-0">@Model.TotalSpaces</h3>
+                        </div>
+                        <i class="fas fa-parking fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Available Spaces</h6>
+                            <h3 class="mt-2 mb-0">@Model.AvailableSpaces</h3>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Today's Revenue</h6>
+                            <h3 class="mt-2 mb-0">@Model.DailyRevenue.ToString("C0")</h3>
+                        </div>
+                        <i class="fas fa-money-bill-wave fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Occupancy Rate</h6>
+                            <h3 class="mt-2 mb-0">@(((Model.TotalSpaces - Model.AvailableSpaces) * 100.0 / Model.TotalSpaces).ToString("F1"))%</h3>
+                        </div>
+                        <i class="fas fa-chart-pie fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Charts Row -->
     <div class="row mb-4">
-        <!-- Hourly Occupancy Chart -->
-        <div class="col-xl-8 col-lg-7">
-            <div class="card shadow">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Tingkat Okupansi per Jam</h6>
+        <div class="col-xl-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Hourly Occupancy</h6>
                 </div>
                 <div class="card-body">
-                    @if (Model.HourlyOccupancy != null && Model.HourlyOccupancy.Any())
-                    {
-                    <div class="chart-area">
-                        <canvas id="occupancyChart"></canvas>
-                    </div>
-                    }
-                    else
-                    {
-                        <div class="text-center py-5">
-                            <i class="fas fa-chart-line fa-3x text-gray-300 mb-3"></i>
-                            <p class="text-muted">Belum ada data okupansi hari ini</p>
-                        </div>
-                    }
+                    <canvas id="hourlyOccupancyChart"></canvas>
                 </div>
             </div>
         </div>
-
-        <!-- Vehicle Type Distribution Chart -->
-        <div class="col-xl-4 col-lg-5">
-            <div class="card shadow">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Distribusi Jenis Kendaraan</h6>
+        <div class="col-xl-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Vehicle Distribution</h6>
                 </div>
                 <div class="card-body">
-                    @if (vehicleTypes.Count > 0)
-                    {
-                    <div class="chart-pie pt-4">
-                        <canvas id="vehicleTypeChart"></canvas>
-                    </div>
-                    }
-                    else
-                    {
-                        <div class="text-center py-5">
-                            <i class="fas fa-car fa-3x text-gray-300 mb-3"></i>
-                            <p class="text-muted">Belum ada data kendaraan hari ini</p>
-                        </div>
-                    }
+                    <canvas id="vehicleDistributionChart"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Recent Activity and Notifications -->
+    <!-- Recent Activity -->
     <div class="row">
-        <!-- Recent Activity Table -->
-        <div class="col-lg-8">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-primary">Aktivitas Parkir Terbaru</h6>
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Recent Activity</h6>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-bordered" width="100%" cellspacing="0" id="activityTable">
+                        <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>Nomor Kendaraan</th>
-                                    <th>Waktu Masuk</th>
-                                    <th>Waktu Keluar</th>
-                                    <th>Durasi</th>
-                                    <th>Biaya</th>
-                                    <th>Status</th>
+                                    <th>Time</th>
+                                    <th>Vehicle</th>
+                                    <th>Type</th>
+                                    <th>Action</th>
+                                    <th>Fee</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @if (Model.RecentActivity != null && Model.RecentActivity.Any())
-                                {
-                                    foreach (var activity in Model.RecentActivity)
-                                    {
-                                        <tr>
-                                            <td>@activity.LicensePlate</td>
-                                            <td>@activity.Timestamp.ToString("dd/MM/yyyy HH:mm")</td>
-                                            <td>@(activity.ActionType == "Exit" ? activity.Timestamp.ToString("dd/MM/yyyy HH:mm") : "-")</td>
-                                            <td>@(activity.ActionType == "Exit" ? "1 jam" : "-")</td>
-                                            <td>@(activity.Fee.HasValue ? $"Rp {activity.Fee.Value:N0}" : "-")</td>
-                                            <td>
-                                                <span class="badge @(activity.ActionType == "Exit" ? "bg-success" : "bg-warning")">
-                                                    @(activity.ActionType == "Exit" ? "Selesai" : "Aktif")
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    }
-                                }
-                                else
+                                @foreach (var activity in Model.RecentActivity)
                                 {
                                     <tr>
-                                        <td colspan="6" class="text-center">Belum ada aktivitas parkir terbaru</td>
+                                        <td>@activity.Timestamp.ToString("HH:mm:ss")</td>
+                                        <td>@activity.LicensePlate</td>
+                                        <td>@activity.VehicleType</td>
+                                        <td>
+                                            <span class="badge bg-@(activity.ActionType == "Entry" ? "success" : "danger")">
+                                                @activity.ActionType
+                                            </span>
+                                        </td>
+                                        <td>@(activity.Fee > 0 ? activity.Fee.ToString("C0") : "-")</td>
                                     </tr>
                                 }
                             </tbody>
                         </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Notifications Card -->
-        <div class="col-lg-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Notifikasi Langsung</h6>
-                </div>
-                <div class="card-body">
-                    <div id="notificationsArea" class="notification-area" style="height: 300px; overflow-y: auto;">
-                        <p class="text-center text-muted">Belum ada notifikasi terbaru</p>
                     </div>
                 </div>
             </div>
@@ -246,192 +130,53 @@
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
     <script>
-        // Chart objects
-        let occupancyChart;
-        let vehicleTypeChart;
-        
-        // Initialize charts with error handling
-        $(document).ready(function() {
-            try {
         // Hourly Occupancy Chart
-                var occupancyData = @Json.Serialize(hourlyOccupancyData);
-                if (occupancyData && occupancyData.Labels && occupancyData.Labels.length > 0) {
-        var occupancyCtx = document.getElementById('occupancyChart').getContext('2d');
-                    occupancyChart = new Chart(occupancyCtx, {
+        new Chart(document.getElementById('hourlyOccupancyChart'), {
             type: 'line',
             data: {
-                labels: occupancyData.Labels,
+                labels: @Json.Serialize(Model.HourlyOccupancy.Select(x => x.Hour)),
                 datasets: [{
-                                label: 'Tingkat Okupansi (%)',
-                    data: occupancyData.Data,
-                    borderColor: '#4e73df',
-                    backgroundColor: 'rgba(78, 115, 223, 0.05)',
-                                tension: 0.3,
-                                fill: true
+                    label: 'Occupancy Rate (%)',
+                    data: @Json.Serialize(Model.HourlyOccupancy.Select(x => x.OccupancyPercentage)),
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1,
+                    fill: false
                 }]
             },
             options: {
-                maintainAspectRatio: false,
-                plugins: {
-                                legend: { display: false },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            return `Okupansi: ${context.parsed.y.toFixed(1)}%`;
-                                        }
-                                    }
-                                }
-                },
+                responsive: true,
                 scales: {
-                                y: { 
-                                    beginAtZero: true,
-                                    max: 100,
-                                    title: {
-                                        display: true,
-                                        text: 'Persentase Okupansi (%)'
-                                    }
-                                },
-                                x: {
-                                    title: {
-                                        display: true,
-                                        text: 'Jam'
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error('Error initializing occupancy chart:', error);
-                if (document.getElementById('occupancyChart')) {
-                    document.getElementById('occupancyChart').insertAdjacentHTML('afterend', 
-                        '<div class="text-center text-danger p-3">Error saat memuat data grafik</div>');
-                    document.getElementById('occupancyChart').style.display = 'none';
-                }
-            }
-            
-            try {
-        // Vehicle Type Distribution Chart
-                var distributionData = @Json.Serialize(vehicleTypeData);
-                if (distributionData && distributionData.Labels && distributionData.Labels.length > 0) {
-                    var distributionCtx = document.getElementById('vehicleTypeChart');
-                    if (distributionCtx) {
-                        distributionCtx = distributionCtx.getContext('2d');
-                        vehicleTypeChart = new Chart(distributionCtx, {
-            type: 'doughnut',
-            data: {
-                labels: distributionData.Labels,
-                datasets: [{
-                    data: distributionData.Data,
-                                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
-                                    hoverBackgroundColor: ['#2e59d9', '#17a673', '#2c9faf', '#dda20a', '#be2617'],
-                                    hoverBorderColor: "rgba(234, 236, 244, 1)",
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                plugins: {
-                                    legend: {
-                                        position: 'bottom',
-                                    }
-                                },
-                                cutout: '70%',
-                            }
-                        });
+                    y: {
+                        beginAtZero: true,
+                        max: 100
                     }
                 }
-            } catch (error) {
-                console.error('Error initializing vehicle type chart:', error);
-                if (document.getElementById('vehicleTypeChart')) {
-                    document.getElementById('vehicleTypeChart').insertAdjacentHTML('afterend', 
-                        '<div class="text-center text-danger p-3">Error saat memuat data grafik</div>');
-                    document.getElementById('vehicleTypeChart').style.display = 'none';
+            }
+        });
+
+        // Vehicle Distribution Chart
+        new Chart(document.getElementById('vehicleDistributionChart'), {
+            type: 'doughnut',
+            data: {
+                labels: @Json.Serialize(Model.VehicleDistribution.Select(x => x.Type)),
+                datasets: [{
+                    data: @Json.Serialize(Model.VehicleDistribution.Select(x => x.Count)),
+                    backgroundColor: [
+                        'rgb(255, 99, 132)',
+                        'rgb(54, 162, 235)',
+                        'rgb(255, 205, 86)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
                 }
             }
-            
-            // Refresh dashboard button
-            $("#refreshDashboard").on("click", function() {
-                $("#loadingIndicator").removeClass("d-none");
-                location.reload();
-            });
         });
-
-        // SignalR connection for real-time updates
-        const connection = new signalR.HubConnectionBuilder()
-            .withUrl("/parkingHub")
-            .build();
-
-        connection.on("ReceiveDashboardUpdate", function (data) {
-            try {
-                // Update dashboard stats
-                $("#totalSpaces").text(data.totalSpaces);
-                $("#availableSpaces").text(data.availableSpaces);
-                $("#occupiedSpaces").text(data.totalSpaces - data.availableSpaces);
-                $("#todayRevenue").text("Rp " + data.dailyRevenue.toLocaleString('id-ID'));
-                
-                // Add notification
-                addNotification("Dashboard telah diperbarui");
-            } catch (error) {
-                console.error('Error updating dashboard:', error);
-            }
-        });
-        
-        connection.on("VehicleEntryNotification", function(vehicleNumber) {
-            addNotification(`Kendaraan ${vehicleNumber} telah masuk`);
-        });
-        
-        connection.on("VehicleExitNotification", function(vehicleNumber) {
-            addNotification(`Kendaraan ${vehicleNumber} telah keluar`);
-        });
-        
-        connection.on("PlateDetectionResult", function(result) {
-            if (result.isSuccessful) {
-                addNotification(`Plat nomor terdeteksi: ${result.licensePlate}`);
-            } else {
-                addNotification(`Gagal mendeteksi plat nomor`);
-            }
-        });
-        
-        function addNotification(message) {
-            const notification = `
-                <div class="alert alert-info alert-dismissible fade show mb-2" role="alert">
-                    ${message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            `;
-            
-            $("#notificationsArea").prepend(notification);
-            
-            // Clear "No notifications" message if it exists
-            if ($("#notificationsArea p.text-muted").length) {
-                $("#notificationsArea p.text-muted").remove();
-            }
-            
-            // Limit to 10 notifications
-            if ($("#notificationsArea .alert").length > 10) {
-                $("#notificationsArea .alert:last").remove();
-            }
-        }
-
-        // Connect to SignalR hub
-        try {
-            connection.start()
-                .then(function () {
-                    console.log("SignalR connected");
-                    addNotification("Terhubung ke server untuk pembaruan real-time");
-                })
-                .catch(function (err) {
-                    console.error("SignalR connection error: " + err.toString());
-                    $("#notificationsArea").html(`
-                        <div class="alert alert-warning" role="alert">
-                            Pembaruan real-time tidak tersedia. Silakan refresh halaman secara manual.
-                        </div>
-                    `);
-                });
-        } catch (error) {
-            console.error('Error establishing SignalR connection:', error);
-        }
     </script>
 }

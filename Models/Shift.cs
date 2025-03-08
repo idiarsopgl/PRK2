@@ -1,28 +1,33 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace ParkIRC.Models
 {
     public class Shift
     {
+        public Shift()
+        {
+            Vehicles = new List<Vehicle>();
+            Operators = new List<Operator>();
+        }
+
         public int Id { get; set; }
-
-        [Required(ErrorMessage = "Nama shift wajib diisi")]
-        public string Name { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Waktu mulai wajib diisi")]
+        
+        [Required]
+        public string ShiftName { get; set; } = string.Empty;
+        
+        [Required]
         public TimeSpan StartTime { get; set; }
-
-        [Required(ErrorMessage = "Waktu selesai wajib diisi")]
+        
+        [Required]
         public TimeSpan EndTime { get; set; }
-
-        public string Description { get; set; } = string.Empty;
-
-        public bool IsActive { get; set; } = true;
-
-        public string CreatedBy { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
-        public string? LastModifiedBy { get; set; }
-        public DateTime? LastModifiedAt { get; set; }
+        
+        public DateTime Date { get; set; }
+        
+        public bool IsActive { get; set; }
+        
+        public virtual ICollection<Vehicle> Vehicles { get; set; }
+        public virtual ICollection<Operator> Operators { get; set; }
     }
 } 

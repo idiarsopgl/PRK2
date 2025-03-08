@@ -1,99 +1,113 @@
+// Vehicle Exit Form Handler
 document.addEventListener('DOMContentLoaded', function() {
-    const vehicleExitForm = document.getElementById('vehicleExitForm');
-    const searchButton = document.querySelector('#vehicleExitForm button.btn-info');
+    const form = document.getElementById('vehicleExitForm');
     const vehicleNumberInput = document.getElementById('vehicleNumber');
-    
-    // Elements for displaying parking details
-    const entryTimeElement = document.getElementById('entryTime');
-    const durationElement = document.getElementById('duration');
-    const rateElement = document.getElementById('rate');
-    const totalAmountElement = document.getElementById('totalAmount');
-    
-    // Search vehicle button click handler
+    const searchButton = document.querySelector('button.btn-info');
+    const submitButton = document.querySelector('button[type="submit"]');
+    const resetButton = document.querySelector('button[type="reset"]');
+
+    // Function to format currency
+    function formatCurrency(amount) {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0
+        }).format(amount);
+    }
+
+    // Function to format date
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleString('id-ID', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    // Search vehicle
     searchButton.addEventListener('click', async function() {
         const vehicleNumber = vehicleNumberInput.value.trim();
         if (!vehicleNumber) {
-            alert('Please enter a vehicle number');
+            alert('Masukkan nomor kendaraan terlebih dahulu');
             return;
         }
-        
+
         try {
-            const response = await fetch(`/api/parking/vehicle/${encodeURIComponent(vehicleNumber)}`);
-            if (!response.ok) {
-                throw new Error('Vehicle not found');
-            }
-            
+            const response = await fetch(`/Parking/CheckVehicleAvailability?vehicleNumber=${encodeURIComponent(vehicleNumber)}`);
             const data = await response.json();
-            updateParkingDetails(data);
+
+            if (!data.isAvailable) {
+                // Vehicle is parked, enable submit button
+                submitButton.disabled = false;
+            } else {
+                alert('Kendaraan tidak ditemukan atau sudah keluar dari parkir');
+                submitButton.disabled = true;
+            }
         } catch (error) {
-            alert(error.message);
-            resetParkingDetails();
+            console.error('Error:', error);
+            alert('Terjadi kesalahan saat mencari kendaraan');
         }
     });
-    
-    // Form submission handler
-    vehicleExitForm.addEventListener('submit', async function(e) {
+
+    // Handle form submission
+    form.addEventListener('submit', async function(e) {
         e.preventDefault();
         
         const vehicleNumber = vehicleNumberInput.value.trim();
         if (!vehicleNumber) {
-            alert('Please enter a vehicle number');
+            alert('Masukkan nomor kendaraan terlebih dahulu');
             return;
         }
-        
+
         try {
-            const response = await fetch('/api/parking/exit', {
+            const response = await fetch('/Parking/ProcessExit', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
                 },
                 body: JSON.stringify(vehicleNumber)
             });
-            
-            if (!response.ok) {
-                throw new Error('Failed to process exit');
-            }
-            
+
             const result = await response.json();
-            alert('Vehicle exit processed successfully');
-            resetForm();
-            // Reload the recent exits table
-            location.reload();
+
+            if (response.ok) {
+                // Update parking details
+                document.getElementById('entryTime').textContent = formatDate(result.entryTime);
+                document.getElementById('duration').textContent = result.duration;
+                document.getElementById('totalAmount').textContent = formatCurrency(result.totalAmount);
+
+                // Show success message
+                alert('Kendaraan berhasil keluar dari parkir');
+                
+                // Reset form
+                form.reset();
+                submitButton.disabled = true;
+
+                // Refresh recent exits table if exists
+                if (typeof updateRecentExits === 'function') {
+                    updateRecentExits();
+                }
+            } else {
+                alert(result.error || 'Terjadi kesalahan saat memproses keluar kendaraan');
+            }
         } catch (error) {
-            alert(error.message);
+            console.error('Error:', error);
+            alert('Terjadi kesalahan saat memproses keluar kendaraan');
         }
     });
-    
-    function updateParkingDetails(data) {
-        entryTimeElement.textContent = new Date(data.entryTime).toLocaleString();
-        const duration = calculateDuration(new Date(data.entryTime), new Date());
-        durationElement.textContent = duration;
-        rateElement.textContent = `$${data.hourlyRate}/hr`;
-        const totalAmount = calculateTotalAmount(data.entryTime, data.hourlyRate);
-        totalAmountElement.textContent = `$${totalAmount}`;
-    }
-    
-    function calculateDuration(entryTime, currentTime) {
-        const diff = currentTime - entryTime;
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        return `${hours} hrs ${minutes} mins`;
-    }
-    
-    function calculateTotalAmount(entryTime, hourlyRate) {
-        const hours = (new Date() - new Date(entryTime)) / (1000 * 60 * 60);
-        return (Math.ceil(hours) * hourlyRate).toFixed(2);
-    }
-    
-    function resetParkingDetails() {
-        entryTimeElement.textContent = '--:--';
-        durationElement.textContent = '-- hrs -- mins';
-        rateElement.textContent = '$--/hr';
-        totalAmountElement.textContent = '$--';
-    }
-    
-    function resetForm() {
-        vehicleExitForm.reset();
-        resetParkingDetails();
-    }
-}));
+
+    // Handle form reset
+    resetButton.addEventListener('click', function() {
+        submitButton.disabled = true;
+        document.getElementById('entryTime').textContent = '--:--';
+        document.getElementById('duration').textContent = '-- hrs -- mins';
+        document.getElementById('rate').textContent = 'Rp --';
+        document.getElementById('totalAmount').textContent = 'Rp --';
+    });
+
+    // Disable submit button initially
+    submitButton.disabled = true;
+});

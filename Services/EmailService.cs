@@ -1,49 +1,68 @@
+using System;
 using System.Net;
 using System.Net.Mail;
 using Microsoft.Extensions.Configuration;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace ParkIRC.Services
 {
     public interface IEmailService
     {
-        Task SendEmailAsync(string email, string subject, string message);
+        Task SendEmailAsync(string to, string subject, string body);
     }
 
     public class EmailService : IEmailService
     {
         private readonly IConfiguration _configuration;
+        private readonly ILogger<EmailService> _logger;
 
-        public EmailService(IConfiguration configuration)
+        public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
         {
             _configuration = configuration;
+            _logger = logger;
         }
 
-        public async Task SendEmailAsync(string email, string subject, string message)
+        public async Task SendEmailAsync(string to, string subject, string body)
         {
-            var smtpSettings = _configuration.GetSection("SmtpSettings");
-            var host = smtpSettings["Host"];
-            var port = int.Parse(smtpSettings["Port"]);
-            var userName = smtpSettings["UserName"];
-            var password = smtpSettings["Password"];
-            var fromEmail = smtpSettings["FromEmail"];
-
-            using var client = new SmtpClient(host, port)
+            try
             {
-                Credentials = new NetworkCredential(userName, password),
-                EnableSsl = true
-            };
+                var smtpServer = _configuration["Email:SmtpServer"];
+                var portStr = _configuration["Email:Port"];
+                var username = _configuration["Email:Username"];
+                var password = _configuration["Email:Password"];
+                var fromAddress = _configuration["Email:FromAddress"];
 
-            var mailMessage = new MailMessage
+                if (string.IsNullOrEmpty(smtpServer) || string.IsNullOrEmpty(portStr) || 
+                    string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password) || 
+                    string.IsNullOrEmpty(fromAddress))
+                {
+                    throw new InvalidOperationException("Email configuration is incomplete");
+                }
+
+                var port = int.Parse(portStr);
+                var client = new SmtpClient(smtpServer, port)
+                {
+                    EnableSsl = true,
+                    UseDefaultCredentials = false,
+                    Credentials = new NetworkCredential(username, password)
+                };
+
+                var mailMessage = new MailMessage(new MailAddress(fromAddress), new MailAddress(to))
+                {
+                    Subject = subject,
+                    Body = body,
+                    IsBodyHtml = true
+                };
+
+                await client.SendMailAsync(mailMessage);
+                _logger.LogInformation("Email sent successfully to {To}", to);
+            }
+            catch (Exception ex)
             {
-                From = new MailAddress(fromEmail),
-                Subject = subject,
-                Body = message,
-                IsBodyHtml = true
-            };
-            mailMessage.To.Add(email);
-
-            await client.SendMailAsync(mailMessage);
+                _logger.LogError(ex, "Error sending email to {To}", to);
+                throw;
+            }
         }
     }
 } 

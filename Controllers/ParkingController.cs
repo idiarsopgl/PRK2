@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.SignalR;
 using ParkIRC.Hubs;
 using ParkIRC.Services;
 using Microsoft.AspNetCore.Authorization;
+using ParkIRC.Extensions;
+using System.Text.Json;
 
 namespace ParkIRC.Controllers
 {
@@ -19,19 +21,19 @@ namespace ParkIRC.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<ParkingController> _logger;
-        private readonly IHubContext<ParkingHub>? _hubContext;
+        private readonly IHubContext<ParkingHub> _hubContext;
         private readonly IParkingService _parkingService;
 
         public ParkingController(
             ApplicationDbContext context,
             ILogger<ParkingController> logger,
             IParkingService parkingService,
-            IHubContext<ParkingHub>? hubContext = null)
+            IHubContext<ParkingHub> hubContext)
         {
             _context = context;
             _logger = logger;
-            _hubContext = hubContext;
             _parkingService = parkingService;
+            _hubContext = hubContext;
         }
         
         [ResponseCache(Duration = 60)]
@@ -39,171 +41,152 @@ namespace ParkIRC.Controllers
         {
             try
             {
-                var dashboardData = await GetDashboardData();
-                
-                // For backward compatibility with the view
-                ViewData["TotalSpaces"] = dashboardData.TotalSpaces;
-                ViewData["AvailableSpaces"] = dashboardData.AvailableSpaces;
-                ViewData["OccupiedSpaces"] = dashboardData.TotalSpaces - dashboardData.AvailableSpaces;
-                ViewData["TodayRevenue"] = dashboardData.DailyRevenue;
-                
-                try
+                var today = DateTime.Today;
+                var weekStart = today.AddDays(-(int)today.DayOfWeek);
+                var monthStart = new DateTime(today.Year, today.Month, 1);
+
+                // Get all required data in parallel for better performance
+                var totalSpacesTask = _context.ParkingSpaces.CountAsync();
+                var availableSpacesTask = _context.ParkingSpaces.CountAsync(s => !s.IsOccupied);
+                var dailyRevenueTask = _context.ParkingTransactions
+                    .Where(t => t.PaymentTime.Date == today)
+                    .SumDecimalAsync(t => t.TotalAmount);
+                var weeklyRevenueTask = _context.ParkingTransactions
+                    .Where(t => t.PaymentTime.Date >= weekStart && t.PaymentTime.Date <= today)
+                    .SumDecimalAsync(t => t.TotalAmount);
+                var monthlyRevenueTask = _context.ParkingTransactions
+                    .Where(t => t.PaymentTime.Date >= monthStart && t.PaymentTime.Date <= today)
+                    .SumDecimalAsync(t => t.TotalAmount);
+                var recentActivityTask = GetRecentActivity();
+                var hourlyOccupancyTask = GetHourlyOccupancyData();
+                var vehicleDistributionTask = GetVehicleTypeDistribution();
+
+                await Task.WhenAll(
+                    totalSpacesTask, availableSpacesTask, dailyRevenueTask,
+                    weeklyRevenueTask, monthlyRevenueTask, recentActivityTask,
+                    hourlyOccupancyTask, vehicleDistributionTask
+                );
+
+                var dashboardData = new DashboardViewModel
                 {
-                    ViewData["HourlyOccupancy"] = await GetHourlyOccupancy();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error loading hourly occupancy data");
-                    ViewData["HourlyOccupancy"] = new List<object>();
-                }
-                
-                try
-                {
-                    ViewData["VehicleTypeDistribution"] = await GetVehicleTypeDistribution();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error loading vehicle type distribution");
-                    ViewData["VehicleTypeDistribution"] = new List<object>();
-                }
+                    TotalSpaces = await totalSpacesTask,
+                    AvailableSpaces = await availableSpacesTask,
+                    DailyRevenue = await dailyRevenueTask,
+                    WeeklyRevenue = await weeklyRevenueTask,
+                    MonthlyRevenue = await monthlyRevenueTask,
+                    RecentActivity = await recentActivityTask,
+                    HourlyOccupancy = await hourlyOccupancyTask,
+                    VehicleDistribution = await vehicleDistributionTask
+                };
                 
                 return View(dashboardData);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading dashboard");
-                // Create a minimal dashboard model to avoid empty UI
-                var fallbackModel = new DashboardViewModel
-                {
-                    TotalSpaces = 0,
-                    AvailableSpaces = 0,
-                    DailyRevenue = 0,
-                    WeeklyRevenue = 0,
-                    MonthlyRevenue = 0,
-                    RecentActivity = new List<ParkingActivity>(),
-                    HourlyOccupancy = new List<OccupancyData>()
-                };
-                
-                // Add error message to be displayed in the view
-                ViewData["ErrorMessage"] = "Unable to load dashboard data. Please try again later.";
-                
-                return View(fallbackModel);
+                return View("Error", new ParkIRC.Models.ErrorViewModel 
+                { 
+                    Message = "Terjadi kesalahan saat memuat dashboard. Silakan coba lagi nanti.",
+                    RequestId = HttpContext.TraceIdentifier
+                });
             }
         }
 
-        private async Task<DashboardViewModel> GetDashboardData()
+        private async Task<List<ParkingActivity>> GetRecentActivity()
         {
-            try
-            {
-                var today = DateTime.Today;
-                var weekStart = today.AddDays(-(int)today.DayOfWeek); // Start of current week (Sunday)
-                var monthStart = new DateTime(today.Year, today.Month, 1); // Start of current month
-
-                // Get space data using separate queries first
-            var totalSpaces = await _context.ParkingSpaces.CountAsync();
-                var availableSpaces = await _context.ParkingSpaces.CountAsync(s => !s.IsOccupied);
-
-                // Use client-side evaluation for aggregations
-                // Daily revenue
-                var dailyTransactions = await _context.ParkingTransactions
-                    .Where(t => t.PaymentTime.Date == today)
-                    .ToListAsync();  // Get the data to client first
-                decimal dailySum = dailyTransactions.Sum(t => t.TotalAmount);
-
-                // Weekly revenue
-                var weeklyTransactions = await _context.ParkingTransactions
-                    .Where(t => t.PaymentTime.Date >= weekStart && t.PaymentTime.Date <= today)
-                    .ToListAsync();  // Get the data to client first
-                decimal weeklySum = weeklyTransactions.Sum(t => t.TotalAmount);
-
-                // Monthly revenue
-                var monthlyTransactions = await _context.ParkingTransactions
-                    .Where(t => t.PaymentTime.Date >= monthStart && t.PaymentTime.Date <= today)
-                    .ToListAsync();  // Get the data to client first
-                decimal monthlySum = monthlyTransactions.Sum(t => t.TotalAmount);
-
-                // Recent activity
-                var recentActivity = await _context.ParkingTransactions
-                    .Include(t => t.Vehicle)  // Include vehicle in the initial query
-                    .Include(t => t.Vehicle.ParkingSpace)  // Include assigned space
+            return await _context.ParkingTransactions
+                .Include(t => t.Vehicle)
+                .Include(t => t.ParkingSpace)
+                .Where(t => t.Vehicle != null)
                     .OrderByDescending(t => t.EntryTime)
                     .Take(10)
                     .Select(t => new ParkingActivity
                     {
-                        VehicleType = t.Vehicle != null ? t.Vehicle.VehicleType : "Unknown",
-                        LicensePlate = t.Vehicle != null ? t.Vehicle.VehicleNumber : "Unknown",
+                    VehicleType = t.Vehicle != null ? t.Vehicle.VehicleType ?? "Unknown" : "Unknown",
+                    LicensePlate = t.Vehicle != null ? t.Vehicle.VehicleNumber ?? "Unknown" : "Unknown",
                         Timestamp = t.EntryTime,
                         ActionType = t.ExitTime != default(DateTime) ? "Exit" : "Entry",
                         Fee = t.TotalAmount,
-                        ParkingType = t.Vehicle != null && t.Vehicle.ParkingSpace != null ? t.Vehicle.ParkingSpace.SpaceType : "Unknown"
+                    ParkingType = t.ParkingSpace != null ? t.ParkingSpace.SpaceType ?? "Unknown" : "Unknown"
                     })
                     .ToListAsync();
+        }
 
-                // Get hourly occupancy data
-                // Use raw SQLite query for hourly data aggregation
-                var hourlyRawData = await _context.ParkingTransactions
+        private async Task<List<OccupancyData>> GetHourlyOccupancyData()
+        {
+            var today = DateTime.Today;
+            var totalSpaces = await _context.ParkingSpaces.CountAsync();
+            
+            var hourlyData = await _context.ParkingTransactions
                     .Where(t => t.EntryTime.Date == today)
-                    .AsNoTracking()
-                    .ToListAsync();
-
-                // Client-side grouping and processing
-                var hourlyData = hourlyRawData
                     .GroupBy(t => t.EntryTime.Hour)
                     .Select(g => new OccupancyData
                     {
-                        Hour = $"{g.Key}:00",
+                    Hour = $"{g.Key:D2}:00",
+                    Count = g.Count(),
                         OccupancyPercentage = totalSpaces > 0 ? (double)g.Count() / totalSpaces * 100 : 0
                     })
+                .ToListAsync();
+
+            // Fill in missing hours with zero values
+            var allHours = Enumerable.Range(0, 24)
+                .Select(h => new OccupancyData
+                {
+                    Hour = $"{h:D2}:00",
+                    Count = 0,
+                    OccupancyPercentage = 0
+                });
+
+            return allHours.Union(hourlyData, new OccupancyDataComparer())
                     .OrderBy(x => x.Hour)
                     .ToList();
+        }
 
-                // Vehicle type distribution using client-side processing
-                var vehicleTypes = await _context.Vehicles
+        private async Task<List<VehicleDistributionData>> GetVehicleTypeDistribution()
+        {
+            return await _context.Vehicles
                     .Where(v => v.IsParked)
-                    .AsNoTracking()
-                    .ToListAsync();
-                
-                var typeDistribution = vehicleTypes
-                    .GroupBy(v => v.VehicleType)
-                    .Select(g => new
+                .GroupBy(v => v.VehicleType ?? "Unknown")
+                .Select(g => new VehicleDistributionData
                     {
                         Type = g.Key,
                         Count = g.Count()
                     })
-                    .ToList();
-
-                return new DashboardViewModel
-                {
-                    TotalSpaces = totalSpaces,
-                    AvailableSpaces = availableSpaces,
-                    DailyRevenue = dailySum,
-                    WeeklyRevenue = weeklySum,
-                    MonthlyRevenue = monthlySum,
-                    RecentActivity = recentActivity,
-                    HourlyOccupancy = hourlyData
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error loading dashboard data");
-                
-                // Return a basic fallback model with zeros
-                return new DashboardViewModel
-                {
-                    TotalSpaces = 0,
-                    AvailableSpaces = 0,
-                    DailyRevenue = 0,
-                    WeeklyRevenue = 0,
-                    MonthlyRevenue = 0,
-                    RecentActivity = new List<ParkingActivity>(),
-                    HourlyOccupancy = new List<OccupancyData>()
-                };
-            }
+                .ToListAsync();
         }
 
         public IActionResult VehicleEntry()
         {
             return View();
+        }
+
+        private async Task<ParkingSpace?> FindOptimalParkingSpace(string vehicleType)
+        {
+            try
+            {
+                // Get all available spaces that match the vehicle type
+                var availableSpaces = await _context.ParkingSpaces
+                    .Where(s => !s.IsOccupied && s.SpaceType == vehicleType)
+                    .ToListAsync();
+
+                if (!availableSpaces.Any())
+                {
+                    _logger.LogWarning("No available parking spaces for vehicle type: {VehicleType}", vehicleType);
+                    return null;
+                }
+
+                // For now, we'll use a simple strategy: pick the first available space
+                // TODO: Implement more sophisticated space selection based on:
+                // 1. Proximity to entrance/exit
+                // 2. Space size optimization
+                // 3. Traffic flow optimization
+                return availableSpaces.First();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error finding optimal parking space for vehicle type: {VehicleType}", vehicleType);
+                return null;
+            }
         }
 
         [HttpPost]
@@ -246,125 +229,89 @@ namespace ParkIRC.Controllers
                     return BadRequest(new { error = "Format nomor kendaraan tidak valid. Contoh: B 1234 ABC" });
                 }
 
-                // Check if vehicle already exists in the system
+                // Check if vehicle already exists and is parked
                 var existingVehicle = await _context.Vehicles
-                    .FirstOrDefaultAsync(v => v.VehicleNumber == entryModel.VehicleNumber && v.IsParked);
+                    .Include(v => v.ParkingSpace)
+                    .FirstOrDefaultAsync(v => v.VehicleNumber == entryModel.VehicleNumber);
                 
-                if (existingVehicle != null)
+                if (existingVehicle != null && existingVehicle.IsParked)
                 {
                     _logger.LogWarning("Vehicle {VehicleNumber} is already parked", entryModel.VehicleNumber);
-                    return BadRequest(new { error = "Kendaraan sudah terparkir di fasilitas" });
+                    return BadRequest(new { error = "Kendaraan sudah terparkir" });
                 }
 
-                // Find available parking space based on vehicle type
-                var availableSpaces = await _context.ParkingSpaces
-                    .Where(ps => !ps.IsOccupied && ps.SpaceType.ToLower() == entryModel.VehicleType.ToLower())
-                    .ToListAsync();
-                    
-                _logger.LogInformation("Found {Count} available spaces for {VehicleType}", 
-                    availableSpaces.Count, entryModel.VehicleType);
-                    
-                if (!availableSpaces.Any())
+                // Find optimal parking space automatically
+                var optimalSpace = await FindOptimalParkingSpace(entryModel.VehicleType);
+                if (optimalSpace == null)
                 {
-                    _logger.LogWarning("No parking spaces available for {VehicleType}", entryModel.VehicleType);
-                    return BadRequest(new { error = $"Tidak ada slot parkir tersedia untuk {GetVehicleTypeName(entryModel.VehicleType)}" });
+                    _logger.LogWarning("No available parking space for vehicle type: {VehicleType}", entryModel.VehicleType);
+                    return BadRequest(new { error = $"Tidak ada ruang parkir tersedia untuk kendaraan tipe {GetVehicleTypeName(entryModel.VehicleType)}" });
                 }
-                
-                // Select the first available space
-                var parkingSpace = availableSpaces.First();
 
-                // Use a transaction to ensure data consistency
-                using var transaction = await _context.Database.BeginTransactionAsync();
-                
-                try
+                // Create or update vehicle record
+                if (existingVehicle == null)
                 {
-                    // Create new vehicle record
-                    var vehicle = new Vehicle
+                    existingVehicle = new Vehicle
                     {
                         VehicleNumber = entryModel.VehicleNumber,
                         VehicleType = entryModel.VehicleType,
                         DriverName = entryModel.DriverName,
-                        ContactNumber = entryModel.ContactNumber,
-                        EntryTime = DateTime.Now,
+                        PhoneNumber = entryModel.PhoneNumber,
                         IsParked = true,
-                        ParkingSpaceId = parkingSpace.Id
+                        ParkingSpace = optimalSpace
                     };
+                    _context.Vehicles.Add(existingVehicle);
+                }
+                else
+                {
+                    existingVehicle.VehicleType = entryModel.VehicleType;
+                    existingVehicle.DriverName = entryModel.DriverName;
+                    existingVehicle.PhoneNumber = entryModel.PhoneNumber;
+                    existingVehicle.IsParked = true;
+                    existingVehicle.ParkingSpace = optimalSpace;
+                }
 
-                    _context.Vehicles.Add(vehicle);
-                    await _context.SaveChangesAsync();
-                    
-                    _logger.LogInformation("Created vehicle record with ID {VehicleId}", vehicle.Id);
-
-                    // Mark space as occupied and update its properties
-                    parkingSpace.IsOccupied = true;
-                    parkingSpace.LastOccupiedTime = DateTime.Now;
-                    await _context.SaveChangesAsync();
-                    
-                    _logger.LogInformation("Updated parking space {SpaceNumber} to occupied", parkingSpace.SpaceNumber);
-
-                    // Create entry transaction record
-                    var transactionRecord = new ParkingTransaction
-                    {
-                        VehicleId = vehicle.Id,
-                        ParkingSpaceId = parkingSpace.Id,
-                        EntryTime = vehicle.EntryTime,
+                // Create parking transaction
+                var transaction = new ParkingTransaction
+                {
+                    Vehicle = existingVehicle,
+                    EntryTime = DateTime.Now,
                         TransactionNumber = GenerateTransactionNumber(),
-                        HourlyRate = parkingSpace.HourlyRate,
-                        PaymentStatus = "Pending",
-                        PaymentMethod = "Cash"
+                    Status = "Active"
                     };
+                _context.ParkingTransactions.Add(transaction);
 
-                    _context.ParkingTransactions.Add(transactionRecord);
+                // Update parking space status
+                optimalSpace.IsOccupied = true;
+                optimalSpace.LastOccupiedTime = DateTime.Now;
+
                     await _context.SaveChangesAsync();
                     
-                    _logger.LogInformation("Created transaction record with number {TransactionNumber}", 
-                        transactionRecord.TransactionNumber);
-                
-                    // Commit the transaction
-                    await transaction.CommitAsync();
-                    _logger.LogInformation("Transaction committed successfully for vehicle {VehicleNumber}", 
-                        vehicle.VehicleNumber);
-
-                    // Notify clients about the new entry
+                // Notify clients about the update via SignalR
                     if (_hubContext != null)
+                {
+                    await _hubContext.Clients.All.SendAsync("UpdateParkingStatus", new
                     {
-                        try
-                        {
-                            await _hubContext.Clients.All.SendAsync("NotifyVehicleEntry", vehicle.VehicleNumber);
-                            var dashboardData = await GetDashboardData();
-                            await _hubContext.Clients.All.SendAsync("UpdateDashboard", dashboardData);
-                            _logger.LogInformation("SignalR notifications sent for vehicle {VehicleNumber}", vehicle.VehicleNumber);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Error notifying clients about vehicle entry");
-                        }
-                    }
-
-                    return Ok(new { 
-                        message = "Data kendaraan berhasil disimpan",
-                        vehicle = new {
-                            id = vehicle.Id,
-                            vehicleNumber = vehicle.VehicleNumber,
-                            entryTime = vehicle.EntryTime
-                        },
-                        parkingSpace = new {
-                            id = parkingSpace.Id,
-                            spaceNumber = parkingSpace.SpaceNumber
-                        }
+                        Action = "Entry",
+                        VehicleNumber = entryModel.VehicleNumber,
+                        SpaceNumber = optimalSpace.SpaceNumber,
+                        SpaceType = optimalSpace.SpaceType,
+                        Timestamp = DateTime.Now
                     });
                 }
-                catch (Exception ex)
+
+                return Ok(new
                 {
-                    await transaction.RollbackAsync();
-                    _logger.LogError(ex, "Error during transaction for vehicle entry: {VehicleNumber}", entryModel.VehicleNumber);
-                    throw;
-                }
+                    message = "Kendaraan berhasil masuk",
+                    spaceNumber = optimalSpace.SpaceNumber,
+                    spaceType = optimalSpace.SpaceType,
+                    transactionNumber = transaction.TransactionNumber
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error recording vehicle entry for {VehicleNumber}", entryModel?.VehicleNumber);
-                return StatusCode(500, new { error = "Terjadi kesalahan saat menyimpan data kendaraan. Silakan coba lagi." });
+                _logger.LogError(ex, "Error processing vehicle entry for {VehicleNumber}", entryModel.VehicleNumber);
+                return StatusCode(500, new { error = "Terjadi kesalahan saat memproses masuk kendaraan" });
             }
         }
 
@@ -400,18 +347,9 @@ namespace ParkIRC.Controllers
             };
         }
 
-        private async Task<object> GetVehicleTypeDistribution()
+        private async Task<object> GetVehicleDistributionForDashboard()
         {
-            var distribution = await _context.Vehicles
-                .Where(v => v.IsParked)
-                .GroupBy(v => v.VehicleType)
-                .Select(g => new
-                {
-                    Type = g.Key,
-                    Count = g.Count()
-                })
-                .ToListAsync();
-
+            var distribution = await GetVehicleTypeDistribution();
             return new
             {
                 Labels = distribution.Select(x => x.Type).ToList(),
@@ -447,63 +385,126 @@ namespace ParkIRC.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> ProcessExit([FromBody] string vehicleNumber)
         {
             if (string.IsNullOrEmpty(vehicleNumber))
-                return BadRequest("Vehicle number is required.");
+                return BadRequest(new { error = "Nomor kendaraan harus diisi." });
+
             try
             {
+                // Normalize vehicle number
+                vehicleNumber = vehicleNumber.ToUpper().Trim();
+
+                // Find the vehicle and include necessary related data
                 var vehicle = await _context.Vehicles
                     .Include(v => v.ParkingSpace)
                     .FirstOrDefaultAsync(v => v.VehicleNumber == vehicleNumber && v.IsParked);
 
                 if (vehicle == null)
-                    return NotFound("Vehicle not found");
+                    return NotFound(new { error = "Kendaraan tidak ditemukan atau sudah keluar dari parkir." });
 
+                // Find active transaction
                 var transaction = await _context.ParkingTransactions
                     .Where(t => t.VehicleId == vehicle.Id && t.ExitTime == default(DateTime))
                     .OrderByDescending(t => t.EntryTime)
                     .FirstOrDefaultAsync();
 
                 if (transaction == null)
-                    return NotFound("No active parking transaction found");
+                    return NotFound(new { error = "Tidak ditemukan transaksi parkir yang aktif untuk kendaraan ini." });
+
+                // Get applicable parking rate
+                var parkingRate = await _context.Set<ParkingRateConfiguration>()
+                    .Where(r => r.VehicleType == vehicle.VehicleType 
+                            && r.IsActive 
+                            && r.EffectiveFrom <= DateTime.Now 
+                            && (!r.EffectiveTo.HasValue || r.EffectiveTo >= DateTime.Now))
+                    .OrderByDescending(r => r.EffectiveFrom)
+                    .FirstOrDefaultAsync();
+
+                if (parkingRate == null)
+                    return BadRequest(new { error = "Tidak dapat menemukan tarif parkir yang sesuai." });
+
+                // Calculate duration and fee
+                var exitTime = DateTime.Now;
+                var duration = exitTime - transaction.EntryTime;
+                var hours = Math.Ceiling(duration.TotalHours);
+                
+                decimal totalAmount;
+                if (hours <= 1)
+                {
+                    totalAmount = parkingRate.BaseRate;
+                }
+                else if (hours <= 24)
+                {
+                    totalAmount = parkingRate.BaseRate + (parkingRate.HourlyRate * (decimal)(hours - 1));
+                }
+                else if (hours <= 168) // 7 days
+                {
+                    var days = Math.Ceiling(hours / 24);
+                    totalAmount = parkingRate.DailyRate * (decimal)days;
+                }
+                else // more than 7 days
+                {
+                    var weeks = Math.Ceiling(hours / 168);
+                    totalAmount = parkingRate.WeeklyRate * (decimal)weeks;
+                }
 
                 // Update transaction
-                transaction.ExitTime = DateTime.Now;
-                transaction.TotalAmount = CalculateParkingFee(transaction.EntryTime, transaction.ExitTime, transaction.HourlyRate);
+                transaction.ExitTime = exitTime;
+                transaction.TotalAmount = totalAmount;
+                transaction.Status = "Completed";
                 _context.ParkingTransactions.Update(transaction);
 
                 // Update vehicle and parking space
+                vehicle.ExitTime = exitTime;
                 vehicle.IsParked = false;
-                vehicle.ExitTime = DateTime.Now;
-                if (vehicle.ParkingSpace != null)
-                {
                 vehicle.ParkingSpace.IsOccupied = false;
-                }
+                vehicle.ParkingSpace.LastOccupiedTime = exitTime;
                 _context.Vehicles.Update(vehicle);
 
                 await _context.SaveChangesAsync();
                 
-                // Notify dashboard clients about data update
+                // Create response data
+                var response = new
+                {
+                    message = "Kendaraan berhasil keluar",
+                    vehicleNumber = vehicle.VehicleNumber,
+                    entryTime = transaction.EntryTime,
+                    exitTime = exitTime,
+                    duration = $"{hours:0} jam",
+                    totalAmount = totalAmount,
+                    spaceNumber = vehicle.ParkingSpace?.SpaceNumber
+                };
+
+                // Notify clients if SignalR hub is available
                 if (_hubContext != null)
                 {
+                    await _hubContext.Clients.All.SendAsync("UpdateParkingStatus", new
+                    {
+                        Action = "Exit",
+                        VehicleNumber = vehicle.VehicleNumber,
+                        SpaceNumber = vehicle.ParkingSpace?.SpaceNumber,
+                        Timestamp = exitTime
+                    });
+
                     var dashboardData = await GetDashboardData();
                     await _hubContext.Clients.All.SendAsync("ReceiveDashboardUpdate", dashboardData);
                 }
 
-                return Ok(new { vehicle, transaction });
+                return Ok(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing vehicle exit");
-                return StatusCode(500, ex.Message);
+                _logger.LogError(ex, "Error processing vehicle exit for {VehicleNumber}", vehicleNumber);
+                return StatusCode(500, new { error = "Terjadi kesalahan saat memproses keluar kendaraan." });
             }
         }
 
         private async Task<ParkingSpace?> GetAvailableParkingSpace(string type)
         {
             return await _context.ParkingSpaces
-                .Where(ps => !ps.IsOccupied && ps.CurrentVehicle == null && ps.SpaceType.ToLower() == type.ToLower())
+                .Where(ps => !ps.IsOccupied && ps.SpaceType.ToLower() == type.ToLower())
                 .FirstOrDefaultAsync();
         }
 
@@ -655,5 +656,160 @@ namespace ParkIRC.Controllers
                 return StatusCode(500, new { error = "Terjadi kesalahan saat memeriksa ketersediaan kendaraan." });
             }
         }
+
+        public async Task<IActionResult> Transaction()
+        {
+            var currentShift = await GetCurrentShiftAsync();
+            ViewBag.CurrentShift = currentShift;
+            
+            var parkingRates = await _context.ParkingRates
+                .Where(r => r.IsActive)
+                .OrderBy(r => r.VehicleType)
+                .ToListAsync();
+            ViewBag.ParkingRates = parkingRates;
+
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ProcessTransaction([FromBody] TransactionRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var vehicle = await _context.Vehicles
+                    .Include(v => v.ParkingSpace)
+                    .FirstOrDefaultAsync(v => v.VehicleNumber == request.VehicleNumber && v.IsParked);
+
+                if (vehicle == null)
+                {
+                    return NotFound("Vehicle not found or not currently parked");
+                }
+
+                var parkingSpace = vehicle.ParkingSpace;
+                if (parkingSpace == null)
+                {
+                    return NotFound("Parking space not found");
+                }
+
+                var rate = await _context.ParkingRates
+                    .FirstOrDefaultAsync(r => r.VehicleType == vehicle.VehicleType && r.IsActive);
+
+                if (rate == null)
+                {
+                    return NotFound("Parking rate not found for this vehicle type");
+                }
+
+                // Calculate duration and amount
+                var duration = DateTime.Now - vehicle.EntryTime;
+                var amount = CalculateParkingFee(vehicle.EntryTime, DateTime.Now, rate.HourlyRate);
+
+                // Create transaction
+                var transaction = new ParkingTransaction
+                {
+                    VehicleId = vehicle.Id,
+                    ParkingSpaceId = parkingSpace.Id,
+                    TransactionNumber = GenerateTransactionNumber(),
+                    EntryTime = vehicle.EntryTime,
+                    ExitTime = DateTime.Now,
+                    HourlyRate = rate.HourlyRate,
+                    Amount = amount,
+                    TotalAmount = amount,
+                    PaymentStatus = "Completed",
+                    PaymentMethod = request.PaymentMethod,
+                    PaymentTime = DateTime.Now,
+                    Status = "Completed"
+                };
+
+                _context.ParkingTransactions.Add(transaction);
+
+                // Update vehicle and parking space
+                vehicle.ExitTime = DateTime.Now;
+                vehicle.IsParked = false;
+                parkingSpace.IsOccupied = false;
+                parkingSpace.CurrentVehicle = null;
+
+                await _context.SaveChangesAsync();
+
+                // Notify clients of the update
+                await _hubContext.Clients.All.SendAsync("UpdateParkingStatus");
+
+                return Json(new
+                {
+                    success = true,
+                    transactionNumber = transaction.TransactionNumber,
+                    vehicleNumber = vehicle.VehicleNumber,
+                    entryTime = vehicle.EntryTime,
+                    exitTime = transaction.ExitTime,
+                    duration = duration.ToString(@"hh\:mm"),
+                    amount = transaction.TotalAmount
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing parking transaction");
+                return StatusCode(500, "An error occurred while processing the transaction");
+            }
+        }
+
+        private async Task<Shift> GetCurrentShiftAsync()
+        {
+            var now = DateTime.Now.TimeOfDay;
+            // First get all active shifts
+            var activeShifts = await _context.Shifts
+                .Where(s => s.IsActive)
+                .ToListAsync();
+            
+            // Then perform the TimeSpan comparison on the client side
+            var currentShift = activeShifts
+                .FirstOrDefault(s => s.StartTime <= now && s.EndTime >= now);
+        
+            if (currentShift == null)
+                throw new InvalidOperationException("No active shift found");
+        
+            return currentShift;
+        }
+
+        private async Task<DashboardViewModel> GetDashboardData()
+        {
+            var today = DateTime.Today;
+            var weekStart = today.AddDays(-(int)today.DayOfWeek);
+            var monthStart = new DateTime(today.Year, today.Month, 1);
+
+            var totalSpaces = await _context.ParkingSpaces.CountAsync();
+            var availableSpaces = await _context.ParkingSpaces.CountAsync(s => !s.IsOccupied);
+            var dailyRevenue = await _context.ParkingTransactions
+                .Where(t => t.PaymentTime.Date == today)
+                .SumDecimalAsync(t => t.TotalAmount);
+            var weeklyRevenue = await _context.ParkingTransactions
+                .Where(t => t.PaymentTime.Date >= weekStart && t.PaymentTime.Date <= today)
+                .SumDecimalAsync(t => t.TotalAmount);
+            var monthlyRevenue = await _context.ParkingTransactions
+                .Where(t => t.PaymentTime.Date >= monthStart && t.PaymentTime.Date <= today)
+                .SumDecimalAsync(t => t.TotalAmount);
+
+            return new DashboardViewModel
+            {
+                TotalSpaces = totalSpaces,
+                AvailableSpaces = availableSpaces,
+                DailyRevenue = dailyRevenue,
+                WeeklyRevenue = weeklyRevenue,
+                MonthlyRevenue = monthlyRevenue,
+                RecentActivity = await GetRecentActivity(),
+                HourlyOccupancy = await GetHourlyOccupancyData(),
+                VehicleDistribution = await GetVehicleTypeDistribution()
+            };
+        }
+    }
+
+    public class TransactionRequest
+    {
+        public string VehicleNumber { get; set; } = string.Empty;
+        public string PaymentMethod { get; set; } = "Cash";
     }
 }

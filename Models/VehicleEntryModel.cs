@@ -12,11 +12,8 @@ namespace ParkIRC.Models
         [Required(ErrorMessage = "Jenis kendaraan wajib dipilih")]
         public string VehicleType { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Nama pengemudi wajib diisi")]
-        public string DriverName { get; set; } = string.Empty;
+        public string? DriverName { get; set; }
 
-        [Required(ErrorMessage = "Nomor kontak wajib diisi")]
-        [Phone(ErrorMessage = "Format nomor kontak tidak valid")]
-        public string ContactNumber { get; set; } = string.Empty;
+        public string? PhoneNumber { get; set; }
     }
 }
