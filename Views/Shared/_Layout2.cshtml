@@ -30,6 +30,8 @@
 	<script src="~/vendor/js/jquery/jquery-ui.js"></script>
 	<script src="~/vendor/js/bootstrap/bootstrap.min.js"></script>
 	<script src="~/js/main.js"></script>
+	<!-- Page-specific scripts -->
+	@await RenderSectionAsync("Scripts", required: false)
 	<!-- JAVASCRIPTS END -->
 </body>
 

@@ -1,203 +1,126 @@
-@model ParkIRC.Models.DashboardViewModel
+@using ParkIRC.Models
+@model DashboardViewModel
 @{
-    ViewData["Title"] = "Parking Dashboard";
+    ViewData["Title"] = "Dashboard";
 }
 
 <div class="container-fluid">
-    <!-- Error Alert -->
-    @if (ViewData["Error"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
-            <strong>Error!</strong> @ViewData["Error"]
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    }
-
-    <!-- Loading Indicator -->
-    <div id="loadingIndicator" class="text-center d-none">
-        <div class="spinner-border text-primary" role="status">
-            <span class="sr-only">Loading...</span>
-        </div>
-        <p>Updating dashboard data...</p>
-    </div>
-    
-    <div class="row">
-        <!-- Total Spaces Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Spaces</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalSpaces">@ViewData["TotalSpaces"]</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-car fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Available Spaces Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Available Spaces</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="availableSpaces">@ViewData["AvailableSpaces"]</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Occupied Spaces Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Occupied Spaces</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="occupiedSpaces">@ViewData["OccupiedSpaces"]</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-car-side fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Today's Revenue Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Today's Revenue</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="todayRevenue">$@ViewData["TodayRevenue"]</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Export Button -->
+    <!-- Summary Cards -->
     <div class="row mb-4">
-        <div class="col-12">
-            <a href="@Url.Action("ExportDashboardData", "Parking")" class="btn btn-sm btn-primary">
-                <i class="fas fa-download fa-sm text-white-50"></i> Export Report
-            </a>
-            <button id="refreshDashboard" class="btn btn-sm btn-info">
-                <i class="fas fa-sync fa-sm text-white-50"></i> Refresh Data
-            </button>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Total Spaces</h6>
+                            <h3 class="mt-2 mb-0">@Model.TotalSpaces</h3>
+                        </div>
+                        <i class="fas fa-parking fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Available Spaces</h6>
+                            <h3 class="mt-2 mb-0">@Model.AvailableSpaces</h3>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Today's Revenue</h6>
+                            <h3 class="mt-2 mb-0">@Model.DailyRevenue.ToString("C0")</h3>
+                        </div>
+                        <i class="fas fa-money-bill-wave fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Occupancy Rate</h6>
+                            <h3 class="mt-2 mb-0">@(((Model.TotalSpaces - Model.AvailableSpaces) * 100.0 / Model.TotalSpaces).ToString("F1"))%</h3>
+                        </div>
+                        <i class="fas fa-chart-pie fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Charts Row -->
     <div class="row mb-4">
-        <!-- Hourly Occupancy Chart -->
-        <div class="col-xl-8 col-lg-7">
-            <div class="card shadow">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Hourly Occupancy Rate</h6>
+        <div class="col-xl-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Hourly Occupancy</h6>
                 </div>
                 <div class="card-body">
-                    <div class="chart-area">
-                        <canvas id="occupancyChart"></canvas>
-                    </div>
+                    <canvas id="hourlyOccupancyChart"></canvas>
                 </div>
             </div>
         </div>
-
-        <!-- Vehicle Type Distribution Chart -->
-        <div class="col-xl-4 col-lg-5">
-            <div class="card shadow">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Vehicle Types Distribution</h6>
+        <div class="col-xl-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Vehicle Distribution</h6>
                 </div>
                 <div class="card-body">
-                    <div class="chart-pie pt-4">
-                        <canvas id="vehicleTypeChart"></canvas>
-                    </div>
+                    <canvas id="vehicleDistributionChart"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Recent Activity and Notifications -->
+    <!-- Recent Activity -->
     <div class="row">
-        <!-- Recent Activity Table -->
-        <div class="col-lg-8">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-primary">Recent Parking Activity</h6>
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Recent Activity</h6>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-bordered" width="100%" cellspacing="0" id="activityTable">
+                        <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>Vehicle Number</th>
-                                    <th>Entry Time</th>
-                                    <th>Exit Time</th>
-                                    <th>Duration</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
+                                    <th>Time</th>
+                                    <th>Vehicle</th>
+                                    <th>Type</th>
+                                    <th>Action</th>
+                                    <th>Fee</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @if (ViewData["RecentActivity"] is List<object> recentActivities)
-                                {
-                                    foreach (var activity in recentActivities)
-                                    {
-                                        var parkingActivity = activity as ParkIRC.Models.ParkingActivityViewModel;
-                                        if (parkingActivity != null)
-                                        {
-                                            <tr>
-                                                <td>@parkingActivity.VehicleNumber</td>
-                                                <td>@parkingActivity.EntryTime.ToString("MM/dd/yyyy HH:mm")</td>
-                                                <td>@(parkingActivity.ExitTime?.ToString("MM/dd/yyyy HH:mm") ?? "-")</td>
-                                                <td>@parkingActivity.Duration</td>
-                                                <td>$@parkingActivity.Amount</td>
-                                                <td><span class="badge badge-@(parkingActivity.Status == "Completed" ? "success" : "warning")">@parkingActivity.Status</span></td>
-                                            </tr>
-                                        }
-                                    }
-                                }
-                                else
+                                @foreach (var activity in Model.RecentActivity)
                                 {
                                     <tr>
-                                        <td colspan="6" class="text-center">No recent activity found</td>
+                                        <td>@activity.Timestamp.ToString("HH:mm:ss")</td>
+                                        <td>@activity.LicensePlate</td>
+                                        <td>@activity.VehicleType</td>
+                                        <td>
+                                            <span class="badge bg-@(activity.ActionType == "Entry" ? "success" : "danger")">
+                                                @activity.ActionType
+                                            </span>
+                                        </td>
+                                        <td>@(activity.Fee > 0 ? activity.Fee.ToString("C0") : "-")</td>
                                     </tr>
                                 }
                             </tbody>
                         </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Notifications Card -->
-        <div class="col-lg-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Live Notifications</h6>
-                </div>
-                <div class="card-body">
-                    <div id="notificationsArea" class="notification-area" style="height: 300px; overflow-y: auto;">
-                        <p class="text-center text-muted">No recent notifications</p>
                     </div>
                 </div>
             </div>
@@ -207,167 +130,53 @@
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
     <script>
-        // Chart objects
-        let occupancyChart;
-        let vehicleTypeChart;
-        
         // Hourly Occupancy Chart
-        var occupancyData = @Json.Serialize(ViewData["HourlyOccupancy"]);
-        var occupancyCtx = document.getElementById('occupancyChart').getContext('2d');
-        occupancyChart = new Chart(occupancyCtx, {
+        new Chart(document.getElementById('hourlyOccupancyChart'), {
             type: 'line',
             data: {
-                labels: occupancyData.Labels,
+                labels: @Json.Serialize(Model.HourlyOccupancy.Select(x => x.Hour)),
                 datasets: [{
-                    label: 'Occupied Spaces',
-                    data: occupancyData.Data,
-                    borderColor: '#4e73df',
-                    backgroundColor: 'rgba(78, 115, 223, 0.05)',
-                    tension: 0.3
+                    label: 'Occupancy Rate (%)',
+                    data: @Json.Serialize(Model.HourlyOccupancy.Select(x => x.OccupancyPercentage)),
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1,
+                    fill: false
                 }]
             },
             options: {
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
+                responsive: true,
                 scales: {
-                    y: { beginAtZero: true }
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
                 }
             }
         });
 
-        // Vehicle Type Distribution Chart
-        var distributionData = @Json.Serialize(ViewData["VehicleTypeDistribution"]);
-        var distributionCtx = document.getElementById('vehicleTypeChart').getContext('2d');
-        vehicleTypeChart = new Chart(distributionCtx, {
+        // Vehicle Distribution Chart
+        new Chart(document.getElementById('vehicleDistributionChart'), {
             type: 'doughnut',
             data: {
-                labels: distributionData.Labels,
+                labels: @Json.Serialize(Model.VehicleDistribution.Select(x => x.Type)),
                 datasets: [{
-                    data: distributionData.Data,
-                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e']
+                    data: @Json.Serialize(Model.VehicleDistribution.Select(x => x.Count)),
+                    backgroundColor: [
+                        'rgb(255, 99, 132)',
+                        'rgb(54, 162, 235)',
+                        'rgb(255, 205, 86)'
+                    ]
                 }]
             },
             options: {
-                maintainAspectRatio: false,
+                responsive: true,
                 plugins: {
-                    legend: { position: 'bottom' }
+                    legend: {
+                        position: 'bottom'
+                    }
                 }
             }
         });
-        
-        // SignalR Connection
-        const connection = new signalR.HubConnectionBuilder()
-            .withUrl("/parkingHub")
-            .configureLogging(signalR.LogLevel.Information)
-            .build();
-            
-        // Start connection
-        async function startConnection() {
-            try {
-                await connection.start();
-                console.log("SignalR Connected.");
-                addNotification("Dashboard connected for real-time updates", "info");
-            } catch (err) {
-                console.log(err);
-                setTimeout(startConnection, 5000);
-            }
-        }
-        
-        // Add notification to the notification area
-        function addNotification(message, type = "primary") {
-            const notificationsArea = document.getElementById('notificationsArea');
-            
-            // Clear "no notifications" message if present
-            if (notificationsArea.querySelector('.text-muted')) {
-                notificationsArea.innerHTML = '';
-            }
-            
-            const notification = document.createElement('div');
-            notification.className = `alert alert-${type} alert-dismissible fade show mb-2 py-2`;
-            notification.innerHTML = `
-                ${message}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-                <small class="d-block text-right">${new Date().toLocaleTimeString()}</small>
-            `;
-            
-            notificationsArea.prepend(notification);
-            
-            // Limit notifications to 10
-            const notifications = notificationsArea.querySelectorAll('.alert');
-            if (notifications.length > 10) {
-                notificationsArea.removeChild(notifications[notifications.length - 1]);
-            }
-        }
-        
-        // Update dashboard with new data
-        function updateDashboard(data) {
-            document.getElementById('loadingIndicator').classList.add('d-none');
-            
-            // Update counters
-            document.getElementById('totalSpaces').innerText = data.totalSpaces;
-            document.getElementById('availableSpaces').innerText = data.availableSpaces;
-            document.getElementById('occupiedSpaces').innerText = data.totalSpaces - data.availableSpaces;
-            document.getElementById('todayRevenue').innerText = '$' + data.dailyRevenue;
-            
-            // Update charts if new data is available
-            if (data.hourlyOccupancy && data.hourlyOccupancy.length > 0) {
-                updateOccupancyChart(data.hourlyOccupancy);
-            }
-            
-            // We would update activity table here as well in a complete implementation
-        }
-        
-        // Update occupancy chart
-        function updateOccupancyChart(hourlyData) {
-            const labels = hourlyData.map(item => item.hour);
-            const data = hourlyData.map(item => item.occupancyPercentage);
-            
-            occupancyChart.data.labels = labels;
-            occupancyChart.data.datasets[0].data = data;
-            occupancyChart.update();
-        }
-        
-        // Refresh dashboard manually
-        document.getElementById('refreshDashboard').addEventListener('click', function() {
-            document.getElementById('loadingIndicator').classList.remove('d-none');
-            fetch('@Url.Action("Dashboard", "Parking")', { 
-                headers: { 
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                updateDashboard(data);
-                addNotification("Dashboard data refreshed", "success");
-            })
-            .catch(error => {
-                document.getElementById('loadingIndicator').classList.add('d-none');
-                addNotification("Error refreshing dashboard data", "danger");
-                console.error('Error:', error);
-            });
-        });
-        
-        // SignalR event handlers
-        connection.on("ReceiveDashboardUpdate", (data) => {
-            updateDashboard(data);
-            addNotification("Dashboard data updated", "success");
-        });
-        
-        connection.on("VehicleEntryNotification", (vehicleNumber) => {
-            addNotification(`Vehicle ${vehicleNumber} has entered the parking lot`, "success");
-        });
-        
-        connection.on("VehicleExitNotification", (vehicleNumber) => {
-            addNotification(`Vehicle ${vehicleNumber} has exited the parking lot`, "warning");
-        });
-        
-        // Start SignalR connection
-        startConnection();
     </script>
 }

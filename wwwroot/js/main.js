@@ -1415,5 +1415,59 @@
 	let expenseChart = expenseChartContainer && new ApexCharts(expenseChartContainer, expenseOptions);
 	expenseChart && expenseChart.render();
 
+	// Mobile menu functionality
+	document.addEventListener('DOMContentLoaded', function() {
+		// Mobile menu toggle
+		const mobileToggle = document.querySelector('.geex-header__mobile-toggle');
+		const menuWrapper = document.querySelector('.geex-header__menu-wrapper');
+		
+		if (mobileToggle) {
+			mobileToggle.addEventListener('click', function(e) {
+				e.stopPropagation();
+				menuWrapper.classList.toggle('active');
+			});
+		}
+
+		// Submenu toggle for mobile
+		const hasChildrenItems = document.querySelectorAll('.geex-header__menu__item.has-children');
+		
+		hasChildrenItems.forEach(item => {
+			const link = item.querySelector('.geex-header__menu__link');
+			
+			link.addEventListener('click', function(e) {
+				if (window.innerWidth <= 991) {
+					e.preventDefault();
+					item.classList.toggle('active');
+					
+					// Close other open submenus
+					hasChildrenItems.forEach(otherItem => {
+						if (otherItem !== item) {
+							otherItem.classList.remove('active');
+						}
+					});
+				}
+			});
+		});
+
+		// Close menu when clicking outside
+		document.addEventListener('click', function(e) {
+			if (!menuWrapper.contains(e.target) && !mobileToggle.contains(e.target)) {
+				menuWrapper.classList.remove('active');
+				hasChildrenItems.forEach(item => {
+					item.classList.remove('active');
+				});
+			}
+		});
+
+		// Close menu when window is resized above mobile breakpoint
+		window.addEventListener('resize', function() {
+			if (window.innerWidth > 991) {
+				menuWrapper.classList.remove('active');
+				hasChildrenItems.forEach(item => {
+					item.classList.remove('active');
+				});
+			}
+		});
+	});
 
 })(jQuery);

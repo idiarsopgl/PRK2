@@ -91,6 +91,7 @@ StyleCopReport.xml
 *.tmp_proj
 *_wpftmp.csproj
 *.log
+*.tlog
 *.vspscc
 *.vssscc
 .builds
@@ -361,3 +362,76 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Sensitive configuration files
+appsettings.Development.json
+appsettings.Production.json
+
+# Tye
+.tye/
+
+# Rider
+.idea/
+
+# User-specific files
+*.DS_Store
+
+## .NET Core
+bin/
+obj/
+*.user
+*.userosscache
+*.sln.docstates
+
+## Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+## Rider
+.idea/
+
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+## Visual Studio Code
+.vscode/
+
+## Environment Files
+*.env
+appsettings.Development.json
+appsettings.Production.json
+
+## Logs
+*.log
+logs/
+
+## Dependencies
+node_modules/
+wwwroot/lib/
+
+# Local development settings
+*.db
+*.db-shm
+*.db-wal
+
+# Uploaded files and images
+wwwroot/uploads/
+wwwroot/images/vehicles/
+wwwroot/images/tickets/

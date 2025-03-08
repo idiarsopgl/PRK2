@@ -1,0 +1,265 @@
+@{
+    ViewData["Title"] = "Live Dashboard";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/live-dashboard.css" />
+}
+
+<div class="container-fluid">
+    <!-- Header Stats -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Kendaraan Aktif</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="activeVehicles">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-car fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Slot Tersedia</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="availableSlots">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-parking fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Transaksi Hari Ini</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="todayTransactions">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-receipt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Pendapatan Hari Ini</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="todayRevenue">Rp 0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-money-bill-wave fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Vehicle Entry Section -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-sign-in-alt me-2"></i>Kendaraan Masuk
+                    </h6>
+                    <div class="d-flex align-items-center">
+                        <div class="form-check form-switch me-3">
+                            <input class="form-check-input" type="checkbox" id="autoEntrySwitch" checked>
+                            <label class="form-check-label" for="autoEntrySwitch">Auto Capture</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Live Camera Feed -->
+                    <div class="camera-container mb-3">
+                        <video id="entryCamera" autoplay playsinline style="width: 100%;"></video>
+                        <canvas id="entryCanvas" style="display: none;"></canvas>
+                        <div id="entryCameraOverlay" class="camera-overlay">
+                            <div class="roi-box">
+                                <div class="roi-handle top-left"></div>
+                                <div class="roi-handle top-right"></div>
+                                <div class="roi-handle bottom-left"></div>
+                                <div class="roi-handle bottom-right"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Entry Form -->
+                    <form id="entryForm" class="mb-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="vehicleNumber" class="form-label">Nomor Kendaraan</label>
+                                    <input type="text" class="form-control" id="vehicleNumber" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="vehicleType" class="form-label">Jenis Kendaraan</label>
+                                    <select class="form-select" id="vehicleType" required>
+                                        <option value="">Pilih Jenis</option>
+                                        <option value="Motorcycle">Motor</option>
+                                        <option value="Car">Mobil</option>
+                                        <option value="Truck">Truk</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-print me-2"></i>Cetak Karcis
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Recent Entries Table -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="recentEntriesTable">
+                            <thead>
+                                <tr>
+                                    <th>Waktu</th>
+                                    <th>No. Kendaraan</th>
+                                    <th>Jenis</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentEntriesBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vehicle Exit Section -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-sign-out-alt me-2"></i>Kendaraan Keluar
+                    </h6>
+                    <div class="d-flex align-items-center">
+                        <div class="form-check form-switch me-3">
+                            <input class="form-check-input" type="checkbox" id="autoExitSwitch" checked>
+                            <label class="form-check-label" for="autoExitSwitch">Auto Process</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Barcode Scanner -->
+                    <div id="interactive" class="viewport mb-3">
+                        <video id="exitCamera" style="width: 100%;"></video>
+                        <canvas id="exitCanvas" class="drawingBuffer" style="display:none;"></canvas>
+                    </div>
+
+                    <!-- Scanner Controls -->
+                    <div class="d-flex justify-content-center gap-2 mb-3">
+                        <button class="btn btn-primary" id="startScanButton">
+                            <i class="fas fa-play me-2"></i>Mulai Scan
+                        </button>
+                        <button class="btn btn-danger" id="stopScanButton" style="display:none">
+                            <i class="fas fa-stop me-2"></i>Stop Scan
+                        </button>
+                        <button class="btn btn-secondary" id="switchCameraButton">
+                            <i class="fas fa-sync me-2"></i>Ganti Kamera
+                        </button>
+                    </div>
+
+                    <!-- Exit Details -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">Detail Parkir</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Waktu Masuk:</strong></p>
+                                    <p id="entryTime">--:--</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Durasi:</strong></p>
+                                    <p id="duration">-- jam -- menit</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Tarif:</strong></p>
+                                    <p id="rate">Rp --/jam</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Total:</strong></p>
+                                    <p id="totalAmount">Rp --</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Exits Table -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="recentExitsTable">
+                            <thead>
+                                <tr>
+                                    <th>Waktu Keluar</th>
+                                    <th>No. Kendaraan</th>
+                                    <th>Durasi</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentExitsBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Print Modal -->
+<div class="modal fade" id="ticketModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Karcis Parkir</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="ticketContent">
+                <!-- Ticket content will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                <button type="button" class="btn btn-primary" id="printTicket">
+                    <i class="fas fa-print me-2"></i>Cetak
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="~/js/live-dashboard.js"></script>
+} 

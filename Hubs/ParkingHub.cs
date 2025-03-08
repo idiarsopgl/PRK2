@@ -32,5 +32,33 @@ namespace ParkIRC.Hubs
         {
             await Clients.All.SendAsync("VehicleExitNotification", vehicleNumber);
         }
+        
+        /// <summary>
+        /// Called by ANPR system to broadcast plate detection result
+        /// </summary>
+        /// <param name="licensePlate">The detected license plate number</param>
+        /// <param name="isSuccessful">Whether the detection was successful</param>
+        public async Task NotifyPlateDetection(string licensePlate, bool isSuccessful)
+        {
+            await Clients.All.SendAsync("PlateDetectionResult", new { 
+                licensePlate, 
+                isSuccessful 
+            });
+        }
+        
+        /// <summary>
+        /// Called by systems to notify when barrier opens or closes
+        /// </summary>
+        /// <param name="isEntry">True if entry barrier, false if exit barrier</param>
+        /// <param name="isOpen">True if opened, false if closed</param>
+        public async Task NotifyBarrierStatus(bool isEntry, bool isOpen)
+        {
+            await Clients.All.SendAsync("BarrierStatusChanged", new { 
+                isEntry, 
+                isOpen,
+                barrierType = isEntry ? "Entry" : "Exit",
+                status = isOpen ? "Open" : "Closed"
+            });
+        }
     }
 } 

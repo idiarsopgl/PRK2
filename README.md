@@ -1,53 +1,112 @@
-# Parking Management System
+# ParkIRC - Parking Management System
 
-A modern parking management system built with ASP.NET Core that allows for efficient management of parking spaces, vehicle entry and exit tracking, payment processing, and reporting.
+A modern parking management system built with ASP.NET Core that helps manage parking spaces, vehicle entries/exits, shift scheduling, and payments.
 
 ## Features
 
-- **Real-time Dashboard**: View current parking space occupancy and recent parking activities
-- **Vehicle Management**: Track vehicle entry and exit, assign parking spaces
-- **Payment Processing**: Calculate fees based on parking duration and process payments
-- **Reporting**: Generate reports on occupancy rates, revenue, and parking patterns
-- **User Authentication**: Secure access to management features
+- User Authentication & Authorization
+  - Role-based access control (Admin, Operator)
+  - Secure password reset functionality
+  - User profile management
 
-## Technical Details
+- Parking Management
+  - Automatic space assignment
+  - Vehicle entry/exit tracking
+  - Real-time space availability
+  - Payment processing
+  - Transaction history
 
-- Built with ASP.NET Core 8.0
-- Uses Entity Framework Core for data access
-- In-memory database for development and testing
-- SignalR for real-time updates
-- MVC architecture with Razor views
+- Shift Management
+  - Shift scheduling functionality
+
+- Dashboard
+  - Real-time occupancy status
+  - Revenue statistics
+  - Recent activities
+  - Space utilization metrics
+
+## Technology Stack
+
+- ASP.NET Core 6.0
+- Entity Framework Core
+- SQLite
+- Identity Framework
+- SweetAlert2
+- jQuery
+- Bootstrap 5 for UI
+
+## Prerequisites
+
+- .NET 6.0 SDK
+- Visual Studio 2022 or VS Code
 
 ## Getting Started
 
-### Prerequisites
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/ParkIRC.git
+```
 
-- .NET 8.0 SDK or later
+2. Navigate to the project directory:
+```bash
+cd ParkIRC
+```
 
-### Running the Application
+3. Update the connection string in `appsettings.json`:
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Data Source=GeexParkingDB.db;"
+  }
+}
+```
 
-1. Clone the repository
-2. Navigate to the project directory
-3. Run the application:
-   ```
-   dotnet run
-   ```
-4. Access the application in your browser at `http://localhost:5126`
+4. Apply database migrations:
+```bash
+dotnet ef database update
+```
 
-## Configuration
+5. Run the application:
+```bash
+dotnet run
+```
 
-The application is currently configured to use an in-memory database for development and testing purposes. For production use, you should configure a persistent database like SQL Server, PostgreSQL, or SQLite.
+6. Access the application:
+- HTTP: http://localhost:5126
+- HTTPS: https://localhost:5127
 
-To configure a different database provider:
+## Default Admin Account
 
-1. Install the appropriate NuGet package for your database provider
-2. Update the connection string in `appsettings.json`
-3. Modify the database configuration in `Program.cs`
+- Email: admin@parkingsystem.com
+- Password: Admin@123
 
-## Default Credentials
+## Project Structure
 
-For testing purposes, the application comes with pre-seeded data including parking spaces and sample vehicles.
+- `/src`: Source code
+- `/test`: Tests
+- `/docs`: Documentation
+- `/build`: Build artifacts
+
+### Key Controllers
+
+- `AuthController`: Manages user authentication and authorization.
+- `ParkingController`: Handles vehicle entry and exit tracking.
+- `ShiftController`: Manages shift scheduling functionality.
+
+### Key Models
+
+- `User`: Represents the user entity.
+- `ParkingSpace`: Represents a parking space in the system.
+- `Shift`: Represents a shift in the shift management system.
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

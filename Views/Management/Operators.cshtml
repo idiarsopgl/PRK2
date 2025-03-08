@@ -1,0 +1,89 @@
+@model IEnumerable<ParkIRC.Models.Operator>
+
+@{
+    ViewData["Title"] = "Kelola Operator";
+}
+
+<div class="container-fluid">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-users me-2"></i>Kelola Operator</h6>
+            <a href="@Url.Action("Register", "Auth")" class="btn btn-primary btn-sm">
+                <i class="fas fa-user-plus me-1"></i> Tambah Operator Baru
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="operatorsTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Nama</th>
+                            <th>Badge</th>
+                            <th>Email</th>
+                            <th>No. Telepon</th>
+                            <th>Tanggal Bergabung</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>@item.FullName</td>
+                                <td>@item.BadgeNumber</td>
+                                <td>@item.Email</td>
+                                <td>@item.PhoneNumber</td>
+                                <td>@item.JoinDate.ToString("dd/MM/yyyy")</td>
+                                <td>
+                                    <span class="badge @(item.IsActive ? "bg-success" : "bg-danger")">
+                                        @(item.IsActive ? "Aktif" : "Nonaktif")
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="@Url.Action("EditOperator", new { id = item.Id })" class="btn btn-sm btn-info">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-danger delete-operator" data-id="@item.Id">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('#operatorsTable').DataTable({
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json'
+                },
+                order: [[4, 'desc']], // Sort by join date by default
+                columnDefs: [
+                    { orderable: false, targets: 6 } // Disable sorting for action column
+                ]
+            });
+
+            $('.delete-operator').click(function() {
+                var id = $(this).data('id');
+                if (confirm('Apakah Anda yakin ingin menghapus operator ini?')) {
+                    $.post('@Url.Action("DeleteOperator")', { id: id }, function(result) {
+                        if (result.success) {
+                            location.reload();
+                        } else {
+                            alert('Gagal menghapus operator: ' + result.message);
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+} 
