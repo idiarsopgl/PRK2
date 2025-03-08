@@ -110,8 +110,19 @@ namespace ParkIRC.Controllers
                     ShiftId = currentShift.Id
                 };
 
+                // Create parking transaction
+                var transaction = new ParkingTransaction
+                {
+                    Vehicle = vehicle,
+                    ParkingSpace = parkingSpace,
+                    EntryTime = DateTime.Now,
+                    TransactionNumber = GenerateTransactionNumber(),
+                    Status = "Active"
+                };
+
                 await _context.Vehicles.AddAsync(vehicle);
                 await _context.ParkingTickets.AddAsync(ticket);
+                await _context.ParkingTransactions.AddAsync(transaction);
                 await _context.SaveChangesAsync();
 
                 // Open gate
@@ -264,6 +275,11 @@ namespace ParkIRC.Controllers
         private string GenerateTicketNumber()
         {
             return $"TKT{DateTime.Now:yyyyMMddHHmmss}{new Random().Next(1000, 9999)}";
+        }
+
+        private string GenerateTransactionNumber()
+        {
+            return $"TRN-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 6)}";
         }
 
         private async Task<string> GenerateAndSaveQRCode(string data)
