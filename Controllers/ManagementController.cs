@@ -292,6 +292,8 @@ namespace ParkIRC.Controllers
             else
             {
                 _logger.LogInformation($"Name is valid: '{shift.Name}'");
+                // Set ShiftName from Name to avoid validation error
+                shift.ShiftName = shift.Name;
             }
 
             if (WorkDays == null || WorkDays.Length == 0)
