@@ -6,6 +6,8 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace ParkIRC.Controllers
 {
@@ -13,10 +15,12 @@ namespace ParkIRC.Controllers
     public class ManagementController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<ManagementController> _logger;
 
-        public ManagementController(ApplicationDbContext context)
+        public ManagementController(ApplicationDbContext context, ILogger<ManagementController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         // Parking Slots Management
@@ -140,7 +144,7 @@ namespace ParkIRC.Controllers
             return View(@operator);
         }
 
-        public async Task<IActionResult> EditOperator(int? id)
+        public async Task<IActionResult> EditOperator(string? id)
         {
             if (id == null)
             {
@@ -175,7 +179,7 @@ namespace ParkIRC.Controllers
                     }
 
                     existingOperator.FullName = @operator.FullName;
-                    existingOperator.Email = @operator.Email;
+                    existingOperator.BadgeNumber = @operator.BadgeNumber;
                     existingOperator.PhoneNumber = @operator.PhoneNumber;
                     existingOperator.IsActive = @operator.IsActive;
                     existingOperator.LastModifiedAt = DateTime.UtcNow;
@@ -247,7 +251,7 @@ namespace ParkIRC.Controllers
             // Then order by StartTime on the client side
             shifts = shifts
                 .OrderBy(s => s.Date)
-                .ThenBy(s => s.StartTime.TotalMinutes)
+                .ThenBy(s => s.StartTime.TimeOfDay.TotalMinutes)
                 .ToList();
                 
             return View(shifts);
@@ -258,21 +262,102 @@ namespace ParkIRC.Controllers
             var shift = new Shift
             {
                 Date = DateTime.Today,
-                IsActive = true
+                IsActive = true,
+                StartTime = DateTime.Today, // Set default time
+                EndTime = DateTime.Today    // Set default time
             };
             return View(shift);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateShift(Shift shift)
+        public async Task<IActionResult> CreateShift(Shift shift, string startTime, string endTime, string[] WorkDays)
         {
+            // Log incoming data for debugging
+            _logger.LogInformation($"Received shift data - Name: {shift.Name}, IsActive: {shift.IsActive}");
+            _logger.LogInformation($"WorkDays count: {(WorkDays?.Length ?? 0)}");
+            
+            if (string.IsNullOrEmpty(shift.Name))
+            {
+                ModelState.AddModelError("Name", "Nama shift wajib diisi");
+            }
+
+            if (WorkDays == null || WorkDays.Length == 0)
+            {
+                ModelState.AddModelError("WorkDays", "Pilih minimal satu hari kerja");
+            }
+
+            if (string.IsNullOrEmpty(startTime))
+            {
+                ModelState.AddModelError("StartTime", "Waktu mulai wajib diisi");
+            }
+
+            if (string.IsNullOrEmpty(endTime))
+            {
+                ModelState.AddModelError("EndTime", "Waktu selesai wajib diisi");
+            }
+
             if (ModelState.IsValid)
             {
-                _context.Add(shift);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Shifts));
+                try
+                {
+                    // Parse time strings to TimeSpan
+                    if (TimeSpan.TryParse(startTime, out TimeSpan parsedStartTime) && 
+                        TimeSpan.TryParse(endTime, out TimeSpan parsedEndTime))
+                    {
+                        var baseDate = DateTime.Today;
+                        shift.StartTime = baseDate.Add(parsedStartTime);
+                        shift.EndTime = baseDate.Add(parsedEndTime);
+                        shift.ShiftName = shift.Name;
+                        shift.WorkDaysString = string.Join(",", WorkDays ?? Array.Empty<string>());
+                        shift.CreatedAt = DateTime.Now;
+                        
+                        // Explicitly set IsActive to true for new shifts
+                        shift.IsActive = true;
+
+                        _context.Add(shift);
+                        await _context.SaveChangesAsync();
+
+                        // Log the action
+                        var journal = new Journal
+                        {
+                            Action = "CREATE_SHIFT",
+                            Description = $"Shift baru dibuat: {shift.Name}",
+                            OperatorId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "system",
+                            Timestamp = DateTime.UtcNow
+                        };
+                        _context.Journals.Add(journal);
+                        await _context.SaveChangesAsync();
+
+                        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                        {
+                            return Json(new { success = true, message = "Shift berhasil dibuat!" });
+                        }
+
+                        TempData["SuccessMessage"] = "Shift berhasil dibuat!";
+                        return RedirectToAction(nameof(Shifts));
+                    }
+                    else
+                    {
+                        ModelState.AddModelError("", "Format waktu tidak valid");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error creating shift");
+                    ModelState.AddModelError("", "Terjadi kesalahan saat menyimpan shift. Silakan coba lagi.");
+                }
             }
+
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                return Json(new { success = false, message = string.Join(", ", errors) });
+            }
+
             return View(shift);
         }
 
@@ -297,7 +382,7 @@ namespace ParkIRC.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditShift(int id, Shift shift)
+        public async Task<IActionResult> EditShift(int id, Shift shift, List<string> WorkDays)
         {
             if (id != shift.Id)
             {
@@ -308,8 +393,41 @@ namespace ParkIRC.Controllers
             {
                 try
                 {
-                    _context.Update(shift);
+                    var existingShift = await _context.Shifts
+                        .Include(s => s.Operators)
+                        .Include(s => s.Vehicles)
+                        .FirstOrDefaultAsync(s => s.Id == id);
+
+                    if (existingShift == null)
+                    {
+                        return NotFound();
+                    }
+
+                    // Update properties
+                    existingShift.Name = shift.Name;
+                    existingShift.ShiftName = shift.Name;
+                    existingShift.StartTime = shift.StartTime;
+                    existingShift.EndTime = shift.EndTime;
+                    existingShift.Description = shift.Description;
+                    existingShift.MaxOperators = shift.MaxOperators;
+                    existingShift.IsActive = shift.IsActive;
+                    existingShift.WorkDaysString = string.Join(",", WorkDays ?? new List<string>());
+
                     await _context.SaveChangesAsync();
+
+                    // Log the action
+                    var journal = new Journal
+                    {
+                        Action = "EDIT_SHIFT",
+                        Description = $"Shift diperbarui: {shift.Name}",
+                        OperatorId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "system",
+                        Timestamp = DateTime.UtcNow
+                    };
+                    _context.Journals.Add(journal);
+                    await _context.SaveChangesAsync();
+
+                    TempData["Success"] = "Shift berhasil diperbarui!";
+                    return RedirectToAction(nameof(Shifts));
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -317,12 +435,8 @@ namespace ParkIRC.Controllers
                     {
                         return NotFound();
                     }
-                    else
-                    {
-                        throw;
-                    }
+                    throw;
                 }
-                return RedirectToAction(nameof(Shifts));
             }
             return View(shift);
         }
@@ -331,13 +445,66 @@ namespace ParkIRC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteShift(int id)
         {
-            var shift = await _context.Shifts.FindAsync(id);
-            if (shift != null)
+            try
             {
+                var shift = await _context.Shifts.FindAsync(id);
+                if (shift == null)
+                {
+                    return Json(new { success = false, message = "Shift tidak ditemukan" });
+                }
+
                 _context.Shifts.Remove(shift);
+
+                // Log the action
+                var journal = new Journal
+                {
+                    Action = "DELETE_SHIFT",
+                    Description = $"Shift dihapus: {shift.Name}",
+                    OperatorId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "system",
+                    Timestamp = DateTime.UtcNow
+                };
+                _context.Journals.Add(journal);
+                
                 await _context.SaveChangesAsync();
+                return Json(new { success = true, message = "Shift berhasil dihapus" });
             }
-            return RedirectToAction(nameof(Shifts));
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Gagal menghapus shift: " + ex.Message });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ToggleShiftStatus(int id, bool isActive)
+        {
+            try
+            {
+                var shift = await _context.Shifts.FindAsync(id);
+                if (shift == null)
+                {
+                    return Json(new { success = false, message = "Shift tidak ditemukan" });
+                }
+
+                shift.IsActive = isActive;
+                await _context.SaveChangesAsync();
+
+                // Log the action
+                var journal = new Journal
+                {
+                    Action = isActive ? "ACTIVATE_SHIFT" : "DEACTIVATE_SHIFT",
+                    Description = $"Shift {shift.Name} {(isActive ? "diaktifkan" : "dinonaktifkan")}",
+                    OperatorId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "system",
+                    Timestamp = DateTime.UtcNow
+                };
+                _context.Journals.Add(journal);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Gagal memperbarui status shift: " + ex.Message });
+            }
         }
 
         private bool ShiftExists(int id)

@@ -7,12 +7,20 @@ using ParkIRC.Hubs;
 using ParkIRC.Models;
 using ParkIRC.Services;
 using ParkIRC.Middleware;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Configure HTTPS
+builder.Services.AddHttpsRedirection(options =>
+{
+    options.HttpsPort = 5127; // Set your HTTPS port
+    options.RedirectStatusCode = StatusCodes.Status307TemporaryRedirect;
+});
 
 // Register ParkingService
 builder.Services.AddScoped<IParkingService, ParkingService>();
@@ -60,6 +68,10 @@ builder.Services.AddControllersWithViews()
 
 // Add response caching
 builder.Services.AddResponseCaching();
+
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 
 var app = builder.Build();
 
@@ -207,6 +219,7 @@ else
     app.UseHsts();
 }
 
+// Configure HTTPS redirection
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 

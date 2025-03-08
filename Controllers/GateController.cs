@@ -12,6 +12,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
+using System.Linq;
 
 namespace ParkIRC.Controllers
 {
@@ -40,85 +41,94 @@ namespace ParkIRC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ProcessEntry([FromForm] VehicleEntryModel model, [FromForm] string base64Image)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
             try
             {
-                // Save entry photo
-                string entryPhotoPath = null;
-                if (!string.IsNullOrEmpty(base64Image))
+                _logger.LogInformation($"Processing vehicle entry for {model.VehicleNumber}, Type: {model.VehicleType}");
+
+                // Check if vehicle is already parked
+                var existingVehicle = await _context.Vehicles
+                    .FirstOrDefaultAsync(v => v.VehicleNumber == model.VehicleNumber && v.IsParked);
+
+                if (existingVehicle != null)
                 {
-                    entryPhotoPath = await SaveBase64Image(base64Image, "entry_photos");
+                    return Json(new { success = false, message = "Kendaraan sudah terparkir" });
                 }
 
-                // Get current active shift
+                // Find available parking space
+                var parkingSpace = await FindOptimalParkingSpace(model.VehicleType);
+                if (parkingSpace == null)
+                {
+                    return Json(new { success = false, message = "Tidak ada slot parkir yang tersedia untuk jenis kendaraan ini" });
+                }
+
+                // Save image if provided
+                string? photoPath = null;
+                if (!string.IsNullOrEmpty(base64Image))
+                {
+                    photoPath = await SaveBase64Image(base64Image, "entry-photos");
+                }
+
+                // Get current shift
                 var currentShift = await GetCurrentShiftAsync();
                 if (currentShift == null)
                 {
-                    return BadRequest(new { error = "Tidak ada shift aktif saat ini" });
+                    return Json(new { success = false, message = "Tidak ada shift aktif saat ini" });
                 }
 
-                // Create vehicle record
+                // Create new vehicle record
                 var vehicle = new Vehicle
                 {
-                    VehicleNumber = model.VehicleNumber.ToUpper(),
+                    VehicleNumber = model.VehicleNumber,
                     VehicleType = model.VehicleType,
-                    DriverName = model.DriverName,
-                    PhoneNumber = model.PhoneNumber,
+                    DriverName = model.DriverName ?? string.Empty,
+                    PhoneNumber = model.PhoneNumber ?? string.Empty,
                     EntryTime = DateTime.Now,
                     IsParked = true,
-                    EntryPhotoPath = entryPhotoPath,
+                    EntryPhotoPath = photoPath ?? string.Empty,
+                    ParkingSpaceId = parkingSpace.Id,
                     ShiftId = currentShift.Id
                 };
 
-                // Generate barcode/QR code
+                // Generate barcode
                 string barcodeData = GenerateBarcodeData(vehicle);
                 string barcodeImagePath = await GenerateAndSaveQRCode(barcodeData);
-                
+                vehicle.BarcodeImagePath = barcodeImagePath;
+
+                // Update parking space
+                parkingSpace.IsOccupied = true;
+                parkingSpace.LastOccupiedTime = DateTime.Now;
+
                 // Create parking ticket
                 var ticket = new ParkingTicket
                 {
                     TicketNumber = GenerateTicketNumber(),
                     BarcodeData = barcodeData,
-                    BarcodeImagePath = barcodeImagePath ?? string.Empty,
+                    BarcodeImagePath = barcodeImagePath,
                     IssueTime = DateTime.Now,
-                    IsUsed = false,
                     Vehicle = vehicle,
-                    ShiftId = currentShift.Id,
-                    OperatorId = User.Identity?.Name ?? "system"
+                    OperatorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                    ShiftId = currentShift.Id
                 };
 
-                // Create journal entry
-                var journal = new Journal
-                {
-                    Action = "Check In",
-                    Description = $"Vehicle {vehicle.VehicleNumber} checked in",
-                    Timestamp = DateTime.UtcNow,
-                    OperatorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system"
-                };
-
-                _context.Vehicles.Add(vehicle);
-                _context.ParkingTickets.Add(ticket);
-                _context.Journals.Add(journal);
+                await _context.Vehicles.AddAsync(vehicle);
+                await _context.ParkingTickets.AddAsync(ticket);
                 await _context.SaveChangesAsync();
 
-                // Open the gate (implement your gate control logic here)
+                // Open gate
                 await OpenGateAsync();
 
-                return Ok(new
-                {
-                    message = "Kendaraan berhasil masuk",
+                return Json(new { 
+                    success = true, 
+                    message = "Kendaraan berhasil diproses",
                     ticketNumber = ticket.TicketNumber,
-                    barcodeImageUrl = $"/uploads/barcodes/{Path.GetFileName(barcodeImagePath)}",
-                    entryTime = vehicle.EntryTime
+                    entryTime = vehicle.EntryTime,
+                    barcodeImageUrl = $"/images/barcodes/{Path.GetFileName(barcodeImagePath)}"
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = $"Terjadi kesalahan: {ex.Message}" });
+                _logger.LogError(ex, "Error processing vehicle entry");
+                return Json(new { success = false, message = "Terjadi kesalahan: " + ex.Message });
             }
         }
 
@@ -150,24 +160,22 @@ namespace ParkIRC.Controllers
                 }
 
                 // Save exit photo
-                string exitPhotoPath = null;
+                string? exitPhotoPath = null;
                 if (!string.IsNullOrEmpty(base64Image))
                 {
-                    exitPhotoPath = await SaveBase64Image(base64Image, "exit_photos") ?? string.Empty;
+                    exitPhotoPath = await SaveBase64Image(base64Image, "exit_photos");
                 }
 
                 // Update vehicle status
                 var vehicle = ticket.Vehicle;
-                if (vehicle != null)
-                {
-                    vehicle.IsParked = false;
-                    vehicle.ExitTime = DateTime.Now;
-                    vehicle.ExitPhotoPath = exitPhotoPath;
-                }
-                else
+                if (vehicle == null)
                 {
                     return BadRequest(new { error = "Vehicle data not found" });
                 }
+
+                vehicle.IsParked = false;
+                vehicle.ExitTime = DateTime.Now;
+                vehicle.ExitPhotoPath = exitPhotoPath ?? string.Empty;
 
                 // Mark ticket as used
                 ticket.IsUsed = true;
@@ -214,7 +222,20 @@ namespace ParkIRC.Controllers
         {
             try
             {
-                var bytes = Convert.FromBase64String(base64Image.Split(',')[1]);
+                if (string.IsNullOrEmpty(base64Image) || !base64Image.Contains(","))
+                {
+                    _logger.LogWarning("Invalid base64 image format");
+                    return string.Empty;
+                }
+
+                var base64Data = base64Image.Split(',')[1];
+                if (string.IsNullOrEmpty(base64Data))
+                {
+                    _logger.LogWarning("Empty base64 image data");
+                    return string.Empty;
+                }
+
+                var bytes = Convert.FromBase64String(base64Data);
                 var fileName = $"{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid():N}.jpg";
                 var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", folder);
                 
@@ -228,15 +249,21 @@ namespace ParkIRC.Controllers
                 
                 return $"/uploads/{folder}/{fileName}";
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return null;
+                _logger.LogError(ex, "Failed to save base64 image");
+                return string.Empty;
             }
         }
 
         private string GenerateBarcodeData(Vehicle vehicle)
         {
-            return $"PARK-{vehicle.VehicleNumber}-{DateTime.Now:yyyyMMddHHmmss}";
+            return $"{vehicle.VehicleNumber}|{vehicle.EntryTime:yyyyMMddHHmmss}";
+        }
+
+        private string GenerateTicketNumber()
+        {
+            return $"TKT{DateTime.Now:yyyyMMddHHmmss}{new Random().Next(1000, 9999)}";
         }
 
         private async Task<string> GenerateAndSaveQRCode(string data)
@@ -249,28 +276,23 @@ namespace ParkIRC.Controllers
                 var qrCodeBytes = qrCode.GetGraphic(20);
                 
                 var fileName = $"qr_{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid():N}.png";
-                var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", "barcodes");
+                var filePath = Path.Combine(_webHostEnvironment.WebRootPath, "images", "barcodes", fileName);
                 
-                if (!Directory.Exists(uploadsFolder))
+                var directoryPath = Path.GetDirectoryName(filePath);
+                if (!string.IsNullOrEmpty(directoryPath) && !Directory.Exists(directoryPath))
                 {
-                    Directory.CreateDirectory(uploadsFolder);
+                    Directory.CreateDirectory(directoryPath);
                 }
 
-                var filePath = Path.Combine(uploadsFolder, fileName);
                 await System.IO.File.WriteAllBytesAsync(filePath, qrCodeBytes);
                 
-                return $"/uploads/barcodes/{fileName}";
+                return $"/images/barcodes/{fileName}";
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating QR code");
-                return null;
+                return string.Empty;
             }
-        }
-
-        private string GenerateTicketNumber()
-        {
-            return $"TIK-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 6)}";
         }
 
         private string GenerateJournalNumber()
@@ -278,24 +300,64 @@ namespace ParkIRC.Controllers
             return $"JRN-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 6)}";
         }
 
-        private async Task<Shift> GetCurrentShiftAsync()
+        private async Task<Shift?> GetCurrentShiftAsync()
         {
-            var now = DateTime.Now;
-            var currentTime = now.TimeOfDay;
+            try
+            {
+                var now = DateTime.Now;
+                // First get all active shifts
+                var activeShifts = await _context.Shifts
+                    .Where(s => s.IsActive)
+                    .ToListAsync();
+                
+                // Then check time in memory
+                return activeShifts.FirstOrDefault(s => s.IsTimeInShift(now));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting current shift");
+                return null;
+            }
+        }
 
-            return await _context.Shifts
-                .FirstOrDefaultAsync(s => 
-                    s.Date.Date == now.Date && 
-                    s.StartTime <= currentTime && 
-                    s.EndTime >= currentTime &&
-                    s.IsActive);
+        private async Task<ParkingSpace?> FindOptimalParkingSpace(string vehicleType)
+        {
+            try
+            {
+                // Get all unoccupied parking spaces for the vehicle type
+                var availableSpaces = await _context.ParkingSpaces
+                    .Where(p => !p.IsOccupied && p.SpaceType == vehicleType && p.IsActive)
+                    .OrderBy(p => p.LastOccupiedTime)
+                    .FirstOrDefaultAsync();
+
+                if (availableSpaces == null)
+                {
+                    _logger.LogWarning($"No available parking space found for vehicle type: {vehicleType}");
+                    return null;
+                }
+
+                return availableSpaces;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error finding optimal parking space for vehicle type: {vehicleType}");
+                return null;
+            }
         }
 
         private async Task OpenGateAsync()
         {
-            // Implement your gate control logic here
-            // This is just a placeholder
-            await Task.Delay(1000);
+            try
+            {
+                // TODO: Implement actual gate control logic
+                await Task.Delay(1000); // Simulate gate operation
+                _logger.LogInformation("Gate opened successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error opening gate");
+                throw;
+            }
         }
     }
 } 

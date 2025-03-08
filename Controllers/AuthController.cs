@@ -67,7 +67,7 @@ namespace ParkIRC.Controllers
                 
                 if (result.Succeeded)
                 {
-                    _logger.LogInformation("User logged in: {Email}", model.Email);
+                    _logger.LogInformation("User {Email} logged in successfully.", model.Email);
                     return RedirectToLocal(returnUrl);
                 }
                 
@@ -110,7 +110,7 @@ namespace ParkIRC.Controllers
                 
                 if (result.Succeeded)
                 {
-                    _logger.LogInformation("User created a new account with password");
+                    _logger.LogInformation("User {Email} created a new account with password.", model.Email);
                     
                     // Add to Staff role by default
                     await _userManager.AddToRoleAsync(user, "Staff");
@@ -207,7 +207,7 @@ namespace ParkIRC.Controllers
                 return View("Profile", model);
             }
 
-            _logger.LogInformation("User updated their profile successfully");
+            _logger.LogInformation("User {Email} updated their profile successfully.", model.Email);
             TempData["StatusMessage"] = "Your profile has been updated";
             return RedirectToAction(nameof(Profile));
         }
@@ -254,6 +254,7 @@ namespace ParkIRC.Controllers
                 "Reset Your Password - ParkIRC",
                 emailBody);
 
+            _logger.LogInformation("User {Email} requested a password reset.", model.Email);
             return View("ForgotPasswordConfirmation");
         }
 
@@ -291,6 +292,7 @@ namespace ParkIRC.Controllers
             var result = await _userManager.ResetPasswordAsync(user, model.Code, model.Password);
             if (result.Succeeded)
             {
+                _logger.LogInformation("User {Email} reset their password successfully.", model.Email);
                 return RedirectToAction(nameof(ResetPasswordConfirmation));
             }
             

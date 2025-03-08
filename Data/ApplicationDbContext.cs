@@ -33,7 +33,7 @@ namespace ParkIRC.Data
                 entity.Property(e => e.HourlyRate).HasColumnType("decimal(18,2)");
                 entity.HasOne(e => e.CurrentVehicle)
                     .WithOne(v => v.ParkingSpace)
-                    .HasForeignKey<Vehicle>(v => v.ParkingSpaceId)
+                    .HasForeignKey<ParkingSpace>(p => p.CurrentVehicleId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
 

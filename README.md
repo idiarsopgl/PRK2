@@ -1,11 +1,11 @@
 # ParkIRC - Parking Management System
 
-A modern parking management system built with ASP.NET Core that helps manage parking spaces, vehicle entries/exits, and payments.
+A modern parking management system built with ASP.NET Core that helps manage parking spaces, vehicle entries/exits, shift scheduling, and payments.
 
 ## Features
 
 - User Authentication & Authorization
-  - Role-based access control (Admin, Staff)
+  - Role-based access control (Admin, Operator)
   - Secure password reset functionality
   - User profile management
 
@@ -16,6 +16,9 @@ A modern parking management system built with ASP.NET Core that helps manage par
   - Payment processing
   - Transaction history
 
+- Shift Management
+  - Shift scheduling functionality
+
 - Dashboard
   - Real-time occupancy status
   - Revenue statistics
@@ -24,17 +27,17 @@ A modern parking management system built with ASP.NET Core that helps manage par
 
 ## Technology Stack
 
-- ASP.NET Core 9.0
+- ASP.NET Core 6.0
 - Entity Framework Core
-- SQL Server
+- SQLite
 - Identity Framework
-- SignalR for real-time updates
+- SweetAlert2
+- jQuery
 - Bootstrap 5 for UI
 
 ## Prerequisites
 
-- .NET 9.0 SDK
-- SQL Server
+- .NET 6.0 SDK
 - Visual Studio 2022 or VS Code
 
 ## Getting Started
@@ -53,7 +56,7 @@ cd ParkIRC
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=.;Database=GeexParkingDB;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True"
+    "DefaultConnection": "Data Source=GeexParkingDB.db;"
   }
 }
 ```
@@ -69,13 +72,32 @@ dotnet run
 ```
 
 6. Access the application:
-- HTTP: http://localhost:5000
-- HTTPS: https://localhost:5001
+- HTTP: http://localhost:5126
+- HTTPS: https://localhost:5127
 
 ## Default Admin Account
 
 - Email: admin@parkingsystem.com
 - Password: Admin@123
+
+## Project Structure
+
+- `/src`: Source code
+- `/test`: Tests
+- `/docs`: Documentation
+- `/build`: Build artifacts
+
+### Key Controllers
+
+- `AuthController`: Manages user authentication and authorization.
+- `ParkingController`: Handles vehicle entry and exit tracking.
+- `ShiftController`: Manages shift scheduling functionality.
+
+### Key Models
+
+- `User`: Represents the user entity.
+- `ParkingSpace`: Represents a parking space in the system.
+- `Shift`: Represents a shift in the shift management system.
 
 ## Contributing
 

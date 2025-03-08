@@ -26,13 +26,22 @@ namespace ParkIRC.Models
         public string SpaceType { get; set; }
         
         public bool IsOccupied { get; set; }
+        
+        public bool IsActive { get; set; } = true;
+        
         public DateTime? LastOccupiedTime { get; set; }
         
         public decimal HourlyRate { get; set; }
+        
+        public string? Description { get; set; }
+        
+        public int? CurrentVehicleId { get; set; }
         
         [InverseProperty("ParkingSpace")]
         public virtual Vehicle? CurrentVehicle { get; set; }
         
         public virtual ICollection<ParkingTransaction> Transactions { get; set; }
+        
+        public string VehicleType => SpaceType;
     }
 }

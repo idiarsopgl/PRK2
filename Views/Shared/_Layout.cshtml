@@ -15,10 +15,20 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="~/css/header.css" />
     <link rel="stylesheet" href="~/css/site.css" />
+    
+    <!-- SweetAlert2 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    
+    @await RenderSectionAsync("Styles", required: false)
 </head>
 
 <body class="geex-dashboard top-menu-only">
-    <header class="geex-header">
+    <!-- Header Toggle Button -->
+    <button class="header-toggle" id="headerToggle" title="Toggle Header">
+        <i class="fas fa-chevron-up"></i>
+    </button>
+
+    <header class="geex-header" id="mainHeader">
         <div class="geex-header__wrapper">
             <div class="geex-header__logo-wrapper">
                 <a href="@Url.Action("Dashboard","Parking")" class="geex-header__logo">
@@ -50,7 +60,7 @@
                         </a>
                         <ul class="geex-header__submenu">
                             <li class="geex-header__menu__item">
-                                <a href="@Url.Action("VehicleEntry","Parking")" class="geex-header__menu__link">
+                                <a href="@Url.Action("Entry","Gate")" class="geex-header__menu__link">
                                     <i class="fas fa-sign-in-alt"></i> Kendaraan Masuk
                                 </a>
                             </li>
@@ -135,15 +145,24 @@
         </div>
     </header>
 
-    <main class="geex-main-content">
+    <main class="geex-main-content" id="mainContent">
         <div class="geex-content">
             @RenderBody()
         </div>
     </main>
 
     <!-- JAVASCRIPTS -->
+    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery Validation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/4.0.0/jquery.validate.unobtrusive.min.js"></script>
+    <!-- SignalR -->
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <!-- Custom scripts -->
     <script>
@@ -160,6 +179,28 @@
             if (!menu.contains(event.target) && !toggle.contains(event.target)) {
                 menu.classList.remove('active');
             }
+        });
+
+        // Header Toggle Functionality
+        const headerToggle = document.getElementById('headerToggle');
+        const mainHeader = document.getElementById('mainHeader');
+        const mainContent = document.getElementById('mainContent');
+
+        // Check localStorage for saved state
+        const isHeaderHidden = localStorage.getItem('headerHidden') === 'true';
+        if (isHeaderHidden) {
+            mainHeader.classList.add('header-hidden');
+            headerToggle.classList.add('header-hidden');
+            mainContent.classList.add('header-hidden');
+        }
+
+        headerToggle.addEventListener('click', function() {
+            mainHeader.classList.toggle('header-hidden');
+            headerToggle.classList.toggle('header-hidden');
+            mainContent.classList.toggle('header-hidden');
+            
+            // Save state to localStorage
+            localStorage.setItem('headerHidden', mainHeader.classList.contains('header-hidden'));
         });
     </script>
 

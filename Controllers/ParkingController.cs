@@ -300,6 +300,8 @@ namespace ParkIRC.Controllers
                     });
                 }
 
+                _logger.LogInformation("Vehicle {VehicleNumber} entered the parking lot.", entryModel.VehicleNumber);
+
                 return Ok(new
                 {
                     message = "Kendaraan berhasil masuk",
@@ -459,8 +461,11 @@ namespace ParkIRC.Controllers
                 // Update vehicle and parking space
                 vehicle.ExitTime = exitTime;
                 vehicle.IsParked = false;
-                vehicle.ParkingSpace.IsOccupied = false;
-                vehicle.ParkingSpace.LastOccupiedTime = exitTime;
+                if (vehicle.ParkingSpace != null)
+                {
+                    vehicle.ParkingSpace.IsOccupied = false;
+                    vehicle.ParkingSpace.LastOccupiedTime = exitTime;
+                }
                 _context.Vehicles.Update(vehicle);
 
                 await _context.SaveChangesAsync();
@@ -491,6 +496,8 @@ namespace ParkIRC.Controllers
                     var dashboardData = await GetDashboardData();
                     await _hubContext.Clients.All.SendAsync("ReceiveDashboardUpdate", dashboardData);
                 }
+
+                _logger.LogInformation("Vehicle {VehicleNumber} exited the parking lot.", vehicleNumber);
 
                 return Ok(response);
             }
@@ -759,15 +766,15 @@ namespace ParkIRC.Controllers
 
         private async Task<Shift> GetCurrentShiftAsync()
         {
-            var now = DateTime.Now.TimeOfDay;
+            var now = DateTime.Now;
             // First get all active shifts
             var activeShifts = await _context.Shifts
                 .Where(s => s.IsActive)
                 .ToListAsync();
             
-            // Then perform the TimeSpan comparison on the client side
+            // Use IsTimeInShift method to find current shift
             var currentShift = activeShifts
-                .FirstOrDefault(s => s.StartTime <= now && s.EndTime >= now);
+                .FirstOrDefault(s => s.IsTimeInShift(now));
         
             if (currentShift == null)
                 throw new InvalidOperationException("No active shift found");

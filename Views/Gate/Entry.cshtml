@@ -2,6 +2,10 @@
     ViewData["Title"] = "Gate Entry";
 }
 
+@section Styles {
+    <link rel="stylesheet" href="~/css/gate-entry.css" />
+}
+
 <div class="container-fluid">
     <div class="row">
         <div class="col-lg-6">
@@ -22,36 +26,38 @@
                 </div>
             </div>
         </div>
+        
         <div class="col-lg-6">
             <div class="card shadow mb-4">
                 <div class="card-header py-3">
                     <h6 class="m-0 font-weight-bold text-primary">Data Kendaraan</h6>
                 </div>
                 <div class="card-body">
-                    <form id="entryForm">
+                    <form id="entryForm" method="post">
+                        @Html.AntiForgeryToken()
                         <div class="mb-3">
                             <label class="form-label">Nomor Kendaraan</label>
-                            <input type="text" class="form-control" name="vehicleNumber" required 
+                            <input type="text" class="form-control" name="VehicleNumber" id="vehicleNumber" required 
                                    pattern="[A-Z]{1,2}\s\d{1,4}\s[A-Z]{1,3}"
                                    placeholder="Contoh: B 1234 ABC">
                             <div class="form-text">Format: [Huruf] [Angka] [Huruf], contoh: B 1234 ABC</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Jenis Kendaraan</label>
-                            <select class="form-select" name="vehicleType" required>
+                            <select class="form-select" name="VehicleType" required>
                                 <option value="">Pilih jenis kendaraan</option>
-                                <option value="Car">Mobil</option>
-                                <option value="Motorcycle">Motor</option>
-                                <option value="Truck">Truk</option>
+                                <option value="car">Mobil</option>
+                                <option value="motorcycle">Motor</option>
+                                <option value="truck">Truk</option>
                             </select>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Nama Pengemudi</label>
-                            <input type="text" class="form-control" name="driverName" placeholder="Opsional">
+                            <input type="text" class="form-control" name="DriverName" placeholder="Opsional">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Nomor Telepon</label>
-                            <input type="tel" class="form-control" name="phoneNumber" placeholder="Opsional">
+                            <input type="tel" class="form-control" name="PhoneNumber" placeholder="Opsional">
                         </div>
                         <input type="hidden" name="base64Image" id="base64Image">
                         <button type="submit" class="btn btn-success" id="submitBtn" disabled>
@@ -62,44 +68,26 @@
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Result Modal -->
-    <div class="modal fade" id="resultModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Tiket Parkir</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body text-center">
-                    <div id="ticketContent">
-                        <h4 class="mb-3">Tiket Parkir</h4>
-                        <img id="barcodeImage" class="img-fluid mb-3" style="max-width: 200px;">
-                        <p class="mb-1"><strong>Nomor Tiket:</strong> <span id="ticketNumber"></span></p>
-                        <p class="mb-1"><strong>Waktu Masuk:</strong> <span id="entryTime"></span></p>
-                        <div class="alert alert-success mt-3">
-                            <i class="fas fa-check-circle me-1"></i> Gate terbuka
-                        </div>
-                    </div>
-                    <div id="errorContent" style="display: none;">
-                        <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-circle me-1"></i>
-                            <span id="errorMessage"></span>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" onclick="window.print()">
-                        <i class="fas fa-print me-1"></i> Cetak
-                    </button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
-                </div>
-            </div>
+<!-- Loading Overlay -->
+<div id="loadingOverlay" style="display: none;">
+    <div class="content-wrapper">
+        <div class="spinner-border text-light mb-3" role="status">
+            <span class="visually-hidden">Loading...</span>
         </div>
+        <h5 class="text-light mb-3" id="loadingText">Memproses...</h5>
+        <div class="progress mb-3">
+            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+        </div>
+        <p class="text-light" id="timeoutText" style="display: none;">
+            Waktu pemrosesan lebih lama dari biasanya. Mohon tunggu...
+        </p>
     </div>
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         let stream;
         const video = document.getElementById('camera');
@@ -108,7 +96,20 @@
         const submitBtn = document.getElementById('submitBtn');
         const base64Image = document.getElementById('base64Image');
         const entryForm = document.getElementById('entryForm');
-        const resultModal = new bootstrap.Modal(document.getElementById('resultModal'));
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingText = document.getElementById('loadingText');
+        const timeoutText = document.getElementById('timeoutText');
+        const vehicleNumberInput = document.getElementById('vehicleNumber');
+
+        // Start camera when page loads
+        document.addEventListener('DOMContentLoaded', startCamera);
+
+        // Clean up camera when page unloads
+        window.addEventListener('beforeunload', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        });
 
         // Start camera
         async function startCamera() {
@@ -124,61 +125,98 @@
                 video.play();
             } catch (err) {
                 console.error('Error accessing camera:', err);
-                alert('Tidak dapat mengakses kamera. Pastikan kamera tersedia dan izin diberikan.');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Tidak dapat mengakses kamera. Pastikan kamera tersedia dan izin diberikan.'
+                });
             }
         }
 
         // Capture photo
-        captureBtn.addEventListener('click', () => {
+        captureBtn.addEventListener('click', async () => {
+            captureBtn.disabled = true;
+            
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
             base64Image.value = canvas.toDataURL('image/jpeg');
+            
             submitBtn.disabled = false;
+            captureBtn.disabled = false;
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Foto Berhasil',
+                text: 'Foto kendaraan berhasil diambil',
+                timer: 1500,
+                showConfirmButton: false
+            });
         });
 
         // Handle form submission
         entryForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const formData = new FormData(entryForm);
+            loadingOverlay.style.display = 'block';
+            const progressBar = loadingOverlay.querySelector('.progress-bar');
+            progressBar.style.width = '0%';
+            
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += 5;
+                if (progress <= 90) {
+                    progressBar.style.width = progress + '%';
+                }
+            }, 500);
+            
+            setTimeout(() => {
+                timeoutText.style.display = 'block';
+            }, 10000);
+            
             try {
+                const formData = new FormData(entryForm);
                 const response = await fetch('/Gate/ProcessEntry', {
                     method: 'POST',
-                    headers: {
-                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                    },
                     body: formData
                 });
 
                 const result = await response.json();
-                
+
+                clearInterval(progressInterval);
+                loadingOverlay.style.display = 'none';
+
                 if (response.ok) {
-                    document.getElementById('ticketNumber').textContent = result.ticketNumber;
-                    document.getElementById('entryTime').textContent = new Date(result.entryTime).toLocaleString();
-                    document.getElementById('barcodeImage').src = result.barcodeImageUrl;
-                    document.getElementById('ticketContent').style.display = 'block';
-                    document.getElementById('errorContent').style.display = 'none';
+                    if (result.success) {
+                        Swal.fire({
+                            title: 'Berhasil!',
+                            text: result.message,
+                            icon: 'success',
+                            showConfirmButton: true
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                location.reload();
+                            }
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Gagal',
+                            text: result.message,
+                            icon: 'warning'
+                        });
+                    }
                 } else {
-                    document.getElementById('ticketContent').style.display = 'none';
-                    document.getElementById('errorContent').style.display = 'block';
-                    document.getElementById('errorMessage').textContent = result.error;
+                    throw new Error(result.message || 'Terjadi kesalahan saat memproses kendaraan');
                 }
-                
-                resultModal.show();
-            } catch (err) {
-                console.error('Error:', err);
-                alert('Terjadi kesalahan saat memproses data.');
-            }
-        });
+            } catch (error) {
+                clearInterval(progressInterval);
+                loadingOverlay.style.display = 'none';
 
-        // Start camera when page loads
-        startCamera();
-
-        // Clean up when page unloads
-        window.addEventListener('unload', () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
+                Swal.fire({
+                    title: 'Error',
+                    text: error.message || 'Terjadi kesalahan saat memproses kendaraan',
+                    icon: 'error'
+                });
             }
         });
     </script>

@@ -26,16 +26,24 @@
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
+  width: 100%;
   background: #fff;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   z-index: 1000;
+  height: 60px;
+  transition: transform 0.3s ease;
+}
+
+.geex-header.header-hidden {
+  transform: translateY(-100%);
 }
 
 .geex-header__wrapper {
   display: flex;
   align-items: center;
-  padding: 0.5rem 1rem;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  height: 100%;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -136,28 +144,32 @@
 @media (max-width: 991px) {
   .geex-header__mobile-toggle {
     display: block;
-    margin-left: auto;
-    margin-right: 1rem;
   }
 
   .geex-header__menu-wrapper {
-    display: none;
     position: fixed;
     top: 60px;
-    left: 0;
-    right: 0;
+    left: -250px;
+    width: 250px;
+    height: calc(100vh - 60px);
     background: #fff;
-    padding: 1rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+    transition: left 0.3s ease;
+    overflow-y: auto;
+  }
+
+  .geex-header__menu-wrapper.active {
+    left: 0;
   }
 
   .geex-header__menu {
     flex-direction: column;
+    padding: 1rem;
   }
 
   .geex-header__menu__item {
-    margin: 0;
-    padding: 0.5rem 0;
+    width: 100%;
+    margin: 0.5rem 0;
   }
 
   .geex-header__submenu {
@@ -171,8 +183,8 @@
     display: block;
   }
 
-  .geex-header__menu-wrapper.active {
-    display: block;
+  .geex-main-content {
+    padding-top: 70px;
   }
 
   /* Adjust logo size for mobile */
@@ -186,9 +198,35 @@
   }
 }
 
+@media (max-width: 576px) {
+  .geex-header__wrapper {
+    padding: 0 1rem;
+  }
+
+  .geex-header__logo-wrapper span {
+    display: none;
+  }
+
+  .geex-main-content {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
 /* Main content adjustment */
 .geex-main-content {
-  padding-top: 60px; /* Height of the header */
+  padding-top: 75px;
+  min-height: calc(100vh - 60px);
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  transition: padding-top 0.3s ease;
+}
+
+.geex-main-content.header-hidden {
+  padding-top: 15px;
 }
 
 html[data-nav="top"] .geex-header {
@@ -215,4 +253,42 @@ html[data-nav="top"] .geex-sidebar {
   html[data-nav="top"] .geex-sidebar {
     display: block;
   }
+}
+
+/* Header toggle button */
+.header-toggle {
+    position: fixed;
+    top: 10px;
+    right: 20px;
+    z-index: 1001;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+.header-toggle:hover {
+    background: #0056b3;
+    transform: scale(1.05);
+}
+
+.header-toggle.header-hidden {
+    top: 10px;
+    background: #28a745;
+}
+
+.header-toggle i {
+    transition: transform 0.3s ease;
+}
+
+.header-toggle.header-hidden i {
+    transform: rotate(180deg);
 }
