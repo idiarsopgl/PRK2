@@ -264,7 +264,11 @@ namespace ParkIRC.Controllers
                 Date = DateTime.Today,
                 IsActive = true,
                 StartTime = DateTime.Today, // Set default time
-                EndTime = DateTime.Today    // Set default time
+                EndTime = DateTime.Today,   // Set default time
+                Name = "",                  // Initialize with empty string
+                ShiftName = "",             // Initialize with empty string
+                Description = "",           // Initialize with empty string
+                MaxOperators = 1            // Set default value
             };
             return View(shift);
         }
@@ -277,9 +281,15 @@ namespace ParkIRC.Controllers
             _logger.LogInformation($"Received shift data - Name: {shift.Name}, IsActive: {shift.IsActive}");
             _logger.LogInformation($"WorkDays count: {(WorkDays?.Length ?? 0)}");
             
+            // Ensure Name is not null or empty
             if (string.IsNullOrEmpty(shift.Name))
             {
                 ModelState.AddModelError("Name", "Nama shift wajib diisi");
+                _logger.LogWarning("Name is null or empty");
+            }
+            else
+            {
+                _logger.LogInformation($"Name is valid: {shift.Name}");
             }
 
             if (WorkDays == null || WorkDays.Length == 0)
@@ -308,7 +318,7 @@ namespace ParkIRC.Controllers
                         var baseDate = DateTime.Today;
                         shift.StartTime = baseDate.Add(parsedStartTime);
                         shift.EndTime = baseDate.Add(parsedEndTime);
-                        shift.ShiftName = shift.Name;
+                        shift.ShiftName = shift.Name; // Ensure ShiftName is set from Name
                         shift.WorkDaysString = string.Join(",", WorkDays ?? Array.Empty<string>());
                         shift.CreatedAt = DateTime.Now;
                         
@@ -346,6 +356,17 @@ namespace ParkIRC.Controllers
                 {
                     _logger.LogError(ex, "Error creating shift");
                     ModelState.AddModelError("", "Terjadi kesalahan saat menyimpan shift. Silakan coba lagi.");
+                }
+            }
+            else
+            {
+                // Log all model state errors for debugging
+                foreach (var modelState in ModelState.Values)
+                {
+                    foreach (var error in modelState.Errors)
+                    {
+                        _logger.LogWarning($"Model validation error: {error.ErrorMessage}");
+                    }
                 }
             }
 

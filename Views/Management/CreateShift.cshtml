@@ -29,7 +29,7 @@
                         
                         <div class="mb-3">
                             <label for="Name" class="form-label">Nama Shift <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="Name" name="Name" required />
+                            <input type="text" class="form-control" id="Name" name="Name" value="@(Model?.Name)" required />
                             <div class="invalid-feedback">Nama shift wajib diisi</div>
                         </div>
 
@@ -155,18 +155,31 @@
                     return false;
                 }
                 
-                // Create form data object for better control
-                var formData = new FormData(this);
+                // Collect form data manually to ensure all fields are included
+                var formData = {
+                    __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val(),
+                    Name: $('#Name').val().trim(),
+                    startTime: $('#startTime').val(),
+                    endTime: $('#endTime').val(),
+                    Description: $('#Description').val(),
+                    MaxOperators: $('#MaxOperators').val(),
+                    IsActive: $('#IsActive').is(':checked'),
+                    WorkDays: []
+                };
                 
-                // Convert FormData to URL-encoded string
-                var urlEncodedData = new URLSearchParams(formData).toString();
+                // Collect selected workdays
+                $('.workday-checkbox:checked').each(function() {
+                    formData.WorkDays.push($(this).val());
+                });
+                
+                // Log form data for debugging
+                console.log('Form data:', formData);
                 
                 // Submit form via AJAX
                 $.ajax({
                     url: '@Url.Action("CreateShift", "Management")',
                     type: 'POST',
-                    data: urlEncodedData,
-                    contentType: 'application/x-www-form-urlencoded',
+                    data: formData,
                     success: function(response) {
                         if (response.success) {
                             Swal.fire({
