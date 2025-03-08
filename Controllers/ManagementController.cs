@@ -278,8 +278,10 @@ namespace ParkIRC.Controllers
         public async Task<IActionResult> CreateShift(Shift shift, string startTime, string endTime, string[] WorkDays)
         {
             // Log incoming data for debugging
-            _logger.LogInformation($"Received shift data - Name: {shift.Name}, IsActive: {shift.IsActive}");
+            _logger.LogInformation($"CreateShift POST method called");
+            _logger.LogInformation($"Received shift data - Name: '{shift.Name}', IsActive: {shift.IsActive}");
             _logger.LogInformation($"WorkDays count: {(WorkDays?.Length ?? 0)}");
+            _logger.LogInformation($"StartTime: '{startTime}', EndTime: '{endTime}'");
             
             // Ensure Name is not null or empty
             if (string.IsNullOrEmpty(shift.Name))
@@ -289,23 +291,32 @@ namespace ParkIRC.Controllers
             }
             else
             {
-                _logger.LogInformation($"Name is valid: {shift.Name}");
+                _logger.LogInformation($"Name is valid: '{shift.Name}'");
             }
 
             if (WorkDays == null || WorkDays.Length == 0)
             {
                 ModelState.AddModelError("WorkDays", "Pilih minimal satu hari kerja");
+                _logger.LogWarning("No workdays selected");
+            }
+            else
+            {
+                _logger.LogInformation($"Selected workdays: {string.Join(", ", WorkDays)}");
             }
 
             if (string.IsNullOrEmpty(startTime))
             {
                 ModelState.AddModelError("StartTime", "Waktu mulai wajib diisi");
+                _logger.LogWarning("StartTime is null or empty");
             }
 
             if (string.IsNullOrEmpty(endTime))
             {
                 ModelState.AddModelError("EndTime", "Waktu selesai wajib diisi");
+                _logger.LogWarning("EndTime is null or empty");
             }
+
+            _logger.LogInformation($"ModelState.IsValid: {ModelState.IsValid}");
 
             if (ModelState.IsValid)
             {
@@ -325,8 +336,12 @@ namespace ParkIRC.Controllers
                         // Explicitly set IsActive to true for new shifts
                         shift.IsActive = true;
 
+                        _logger.LogInformation($"Adding shift to database: Name='{shift.Name}', ShiftName='{shift.ShiftName}', WorkDaysString='{shift.WorkDaysString}'");
+                        
                         _context.Add(shift);
                         await _context.SaveChangesAsync();
+
+                        _logger.LogInformation($"Shift added successfully with ID: {shift.Id}");
 
                         // Log the action
                         var journal = new Journal
@@ -341,14 +356,17 @@ namespace ParkIRC.Controllers
 
                         if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
                         {
+                            _logger.LogInformation("Returning JSON success response");
                             return Json(new { success = true, message = "Shift berhasil dibuat!" });
                         }
 
+                        _logger.LogInformation("Redirecting to Shifts page");
                         TempData["SuccessMessage"] = "Shift berhasil dibuat!";
                         return RedirectToAction(nameof(Shifts));
                     }
                     else
                     {
+                        _logger.LogWarning($"Invalid time format: StartTime='{startTime}', EndTime='{endTime}'");
                         ModelState.AddModelError("", "Format waktu tidak valid");
                     }
                 }
@@ -361,11 +379,12 @@ namespace ParkIRC.Controllers
             else
             {
                 // Log all model state errors for debugging
-                foreach (var modelState in ModelState.Values)
+                _logger.LogWarning("Model validation failed. Errors:");
+                foreach (var modelState in ModelState)
                 {
-                    foreach (var error in modelState.Errors)
+                    foreach (var error in modelState.Value.Errors)
                     {
-                        _logger.LogWarning($"Model validation error: {error.ErrorMessage}");
+                        _logger.LogWarning($"Field: {modelState.Key}, Error: {error.ErrorMessage}");
                     }
                 }
             }
@@ -376,9 +395,11 @@ namespace ParkIRC.Controllers
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage)
                     .ToList();
+                _logger.LogWarning($"Returning JSON error response: {string.Join(", ", errors)}");
                 return Json(new { success = false, message = string.Join(", ", errors) });
             }
 
+            _logger.LogInformation("Returning to CreateShift view with model");
             return View(shift);
         }
 

@@ -69,9 +69,12 @@ builder.Services.AddControllersWithViews()
 // Add response caching
 builder.Services.AddResponseCaching();
 
+// Konfigurasi logging
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
+// Tambahkan file logging
+builder.Logging.AddFile("logs/parkirc-{Date}.txt", LogLevel.Information);
 
 var app = builder.Build();
 
