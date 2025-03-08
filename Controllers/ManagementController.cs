@@ -283,7 +283,7 @@ namespace ParkIRC.Controllers
             _logger.LogInformation($"WorkDays count: {(WorkDays?.Length ?? 0)}");
             _logger.LogInformation($"StartTime: '{startTime}', EndTime: '{endTime}'");
             
-            // Ensure Name is not null or empty
+            // Ensure Name and ShiftName are set
             if (string.IsNullOrEmpty(shift.Name))
             {
                 ModelState.AddModelError("Name", "Nama shift wajib diisi");
@@ -292,8 +292,9 @@ namespace ParkIRC.Controllers
             else
             {
                 _logger.LogInformation($"Name is valid: '{shift.Name}'");
-                // Set ShiftName from Name to avoid validation error
+                // Set ShiftName from Name to ensure it's not empty
                 shift.ShiftName = shift.Name;
+                _logger.LogInformation($"ShiftName set to: '{shift.ShiftName}'");
             }
 
             if (WorkDays == null || WorkDays.Length == 0)
@@ -331,7 +332,8 @@ namespace ParkIRC.Controllers
                         var baseDate = DateTime.Today;
                         shift.StartTime = baseDate.Add(parsedStartTime);
                         shift.EndTime = baseDate.Add(parsedEndTime);
-                        shift.ShiftName = shift.Name; // Ensure ShiftName is set from Name
+                        shift.Date = baseDate;
+                        // ShiftName already set above
                         shift.WorkDaysString = string.Join(",", WorkDays ?? Array.Empty<string>());
                         shift.CreatedAt = DateTime.Now;
                         
