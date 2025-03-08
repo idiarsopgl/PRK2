@@ -22,10 +22,10 @@ namespace ParkIRC.Models
         
         public bool IsUsed { get; set; }
         
-        public int VehicleId { get; set; }
+        public int? VehicleId { get; set; }
         
         [ForeignKey("VehicleId")]
-        public virtual Vehicle Vehicle { get; set; } = null!;
+        public virtual Vehicle? Vehicle { get; set; }
         
         public string? OperatorId { get; set; }
         
@@ -36,5 +36,7 @@ namespace ParkIRC.Models
         
         [ForeignKey("ShiftId")]
         public virtual Shift Shift { get; set; } = null!;
+        
+        public string Status { get; set; } = "Active";
     }
 } 

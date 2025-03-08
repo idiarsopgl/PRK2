@@ -91,6 +91,7 @@ StyleCopReport.xml
 *.tmp_proj
 *_wpftmp.csproj
 *.log
+*.tlog
 *.vspscc
 *.vssscc
 .builds
@@ -424,3 +425,13 @@ logs/
 ## Dependencies
 node_modules/
 wwwroot/lib/
+
+# Local development settings
+*.db
+*.db-shm
+*.db-wal
+
+# Uploaded files and images
+wwwroot/uploads/
+wwwroot/images/vehicles/
+wwwroot/images/tickets/

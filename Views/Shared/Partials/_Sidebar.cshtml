@@ -17,39 +17,124 @@
         </div>
         <nav class="geex-sidebar__menu-wrapper">
             <ul class="geex-sidebar__menu">
+                <!-- Dashboard -->
                 <li class="geex-sidebar__menu__item">
                     <a href="@Url.Action("Dashboard","Parking")" class="geex-sidebar__menu__link">
-                        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <g clip-path="url(#clip0_1139_9707)">
-                                <path d="M21.1943 8.31319L14.2413 1.35936C13.3808 0.501345 12.2152 0.0195312 11 0.0195312C9.78482 0.0195312 8.61921 0.501345 7.75868 1.35936L0.805761 8.31319C0.549484 8.56782 0.3463 8.8708 0.207987 9.20454C0.0696733 9.53829 -0.00101787 9.89617 1.10729e-05 10.2574V19.2564C1.10729e-05 19.9857 0.289742 20.6852 0.805467 21.2009C1.32119 21.7166 2.02067 22.0064 2.75001 22.0064H19.25C19.9794 22.0064 20.6788 21.7166 21.1946 21.2009C21.7103 20.6852 22 19.9857 22 19.2564V10.2574C22.001 9.89617 21.9303 9.53829 21.792 9.20454C21.6537 8.8708 21.4505 8.56782 21.1943 8.31319ZM13.75 20.173H8.25001V16.5669C8.25001 15.8375 8.53974 15.138 9.05547 14.6223C9.57119 14.1066 10.2707 13.8169 11 13.8169C11.7294 13.8169 12.4288 14.1066 12.9446 14.6223C13.4603 15.138 13.75 15.8375 13.75 16.5669V20.173ZM20.1667 19.2564C20.1667 19.4995 20.0701 19.7326 19.8982 19.9045C19.7263 20.0764 19.4931 20.173 19.25 20.173H15.5833V16.5669C15.5833 15.3513 15.1005 14.1855 14.2409 13.3259C13.3814 12.4664 12.2156 11.9835 11 11.9835C9.78444 11.9835 8.61865 12.4664 7.75911 13.3259C6.89956 14.1855 6.41668 15.3513 6.41668 16.5669V20.173H2.75001C2.5069 20.173 2.27374 20.0764 2.10183 19.9045C1.92992 19.7326 1.83334 19.4995 1.83334 19.2564V10.2574C1.83419 10.0145 1.93068 9.78168 2.10193 9.60935L9.05485 2.65827C9.57157 2.14396 10.271 1.85522 11 1.85522C11.7291 1.85522 12.4285 2.14396 12.9452 2.65827L19.8981 9.61211C20.0687 9.78375 20.1651 10.0155 20.1667 10.2574V19.2564Z" fill="#B9BBBD" />
-                            </g>
-                            <defs>
-                                <clipPath id="clip0_1139_9707">
-                                    <rect width="22" height="22" fill="white" />
-                                </clipPath>
-                            </defs>
-                        </svg>
+                        <i class="fas fa-tachometer-alt"></i>
                         <span>Dashboard</span>
                     </a>
                 </li>
-                        <li class="geex-sidebar__menu__item">
-                    <a href="@Url.Action("Entry","Gate")" class="geex-sidebar__menu__link">
-                        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M19 5H3C1.89543 5 1 5.89543 1 7V17C1 18.1046 1.89543 19 3 19H19C20.1046 19 21 18.1046 21 17V7C21 5.89543 20.1046 5 19 5Z" stroke="#B9BBBD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M11 12H11.01" stroke="#B9BBBD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        <span>Vehicle Entry</span>
+
+                <!-- Kendaraan -->
+                <li class="geex-sidebar__menu__item has-children">
+                    <a href="#" class="geex-sidebar__menu__link">
+                        <i class="fas fa-car"></i>
+                        <span>Kendaraan</span>
                     </a>
+                    <ul class="geex-sidebar__submenu">
+                        <li class="geex-sidebar__menu__item">
+                            <a href="@Url.Action("Entry","Gate")" class="geex-sidebar__menu__link">
+                                <i class="fas fa-sign-in-alt"></i>
+                                <span>Kendaraan Masuk</span>
+                            </a>
+                        </li>
+                        <li class="geex-sidebar__menu__item">
+                            <a href="@Url.Action("VehicleExit","Parking")" class="geex-sidebar__menu__link">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>Kendaraan Keluar</span>
+                            </a>
+                        </li>
+                        <li class="geex-sidebar__menu__item">
+                            <a href="@Url.Action("LiveDashboard","Parking")" class="geex-sidebar__menu__link">
+                                <i class="fas fa-video"></i>
+                                <span>Monitor Langsung</span>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
-                        <li class="geex-sidebar__menu__item">
-                    <a href="@Url.Action("VehicleExit","Parking")" class="geex-sidebar__menu__link">
-                        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M18 8L12 2L6 8" stroke="#B9BBBD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M12 2V16" stroke="#B9BBBD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M20 16H4V20H20V16Z" stroke="#B9BBBD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        <span>Vehicle Exit</span>
+
+                <!-- Manajemen -->
+                <li class="geex-sidebar__menu__item has-children">
+                    <a href="#" class="geex-sidebar__menu__link">
+                        <i class="fas fa-cogs"></i>
+                        <span>Manajemen</span>
                     </a>
+                    <ul class="geex-sidebar__submenu">
+                        <li class="geex-sidebar__menu__item">
+                            <a href="@Url.Action("ParkingSlots","Management")" class="geex-sidebar__menu__link">
+                                <i class="fas fa-th"></i>
+                                <span>Kelola Slot</span>
+                            </a>
+                        </li>
+                        <li class="geex-sidebar__menu__item">
+                            <a href="@Url.Action("Operators","Management")" class="geex-sidebar__menu__link">
+                                <i class="fas fa-users"></i>
+                                <span>Kelola Operator</span>
+                            </a>
+                        </li>
+                        <li class="geex-sidebar__menu__item">
+                            <a href="@Url.Action("Shifts","Management")" class="geex-sidebar__menu__link">
+                                <i class="fas fa-clock"></i>
+                                <span>Kelola Shift</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- Laporan -->
+                <li class="geex-sidebar__menu__item has-children">
+                    <a href="#" class="geex-sidebar__menu__link">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Laporan</span>
+                    </a>
+                    <ul class="geex-sidebar__submenu">
+                        <li class="geex-sidebar__menu__item">
+                            <a href="@Url.Action("Daily","Reports")" class="geex-sidebar__menu__link">
+                                <i class="fas fa-calendar-day"></i>
+                                <span>Laporan Harian</span>
+                            </a>
+                        </li>
+                        <li class="geex-sidebar__menu__item">
+                            <a href="@Url.Action("Monthly","Reports")" class="geex-sidebar__menu__link">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>Laporan Bulanan</span>
+                            </a>
+                        </li>
+                        <li class="geex-sidebar__menu__item">
+                            <a href="@Url.Action("Custom","Reports")" class="geex-sidebar__menu__link">
+                                <i class="fas fa-calendar-check"></i>
+                                <span>Laporan Kustom</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- Pengaturan -->
+                <li class="geex-sidebar__menu__item has-children">
+                    <a href="#" class="geex-sidebar__menu__link">
+                        <i class="fas fa-wrench"></i>
+                        <span>Pengaturan</span>
+                    </a>
+                    <ul class="geex-sidebar__submenu">
+                        <li class="geex-sidebar__menu__item">
+                            <a href="@Url.Action("Index","Rates")" class="geex-sidebar__menu__link">
+                                <i class="fas fa-money-bill-wave"></i>
+                                <span>Tarif Parkir</span>
+                            </a>
+                        </li>
+                        <li class="geex-sidebar__menu__item">
+                            <a href="@Url.Action("Backup","Settings")" class="geex-sidebar__menu__link">
+                                <i class="fas fa-database"></i>
+                                <span>Backup & Restore</span>
+                            </a>
+                        </li>
+                        <li class="geex-sidebar__menu__item">
+                            <a href="@Url.Action("Settings","Parking")" class="geex-sidebar__menu__link">
+                                <i class="fas fa-cog"></i>
+                                <span>Pengaturan Umum</span>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
             </ul>
         </nav>

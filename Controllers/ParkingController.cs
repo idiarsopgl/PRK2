@@ -13,6 +13,9 @@ using ParkIRC.Services;
 using Microsoft.AspNetCore.Authorization;
 using ParkIRC.Extensions;
 using System.Text.Json;
+using System.IO.Compression;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 
 namespace ParkIRC.Controllers
 {
@@ -23,17 +26,20 @@ namespace ParkIRC.Controllers
         private readonly ILogger<ParkingController> _logger;
         private readonly IHubContext<ParkingHub> _hubContext;
         private readonly IParkingService _parkingService;
+        private readonly IWebHostEnvironment _webHostEnvironment;
 
         public ParkingController(
             ApplicationDbContext context,
             ILogger<ParkingController> logger,
             IParkingService parkingService,
-            IHubContext<ParkingHub> hubContext)
+            IHubContext<ParkingHub> hubContext,
+            IWebHostEnvironment webHostEnvironment)
         {
             _context = context;
             _logger = logger;
             _parkingService = parkingService;
             _hubContext = hubContext;
+            _webHostEnvironment = webHostEnvironment;
         }
         
         [ResponseCache(Duration = 60)]
@@ -102,8 +108,8 @@ namespace ParkIRC.Controllers
                     .Take(10)
                     .Select(t => new ParkingActivity
                     {
-                    VehicleType = t.Vehicle != null ? t.Vehicle.VehicleType ?? "Unknown" : "Unknown",
-                    LicensePlate = t.Vehicle != null ? t.Vehicle.VehicleNumber ?? "Unknown" : "Unknown",
+                    VehicleType = t.Vehicle.VehicleType ?? "Unknown",
+                    LicensePlate = t.Vehicle.VehicleNumber ?? "Unknown",
                         Timestamp = t.EntryTime,
                         ActionType = t.ExitTime != default(DateTime) ? "Exit" : "Entry",
                         Fee = t.TotalAmount,
@@ -811,6 +817,502 @@ namespace ParkIRC.Controllers
                 HourlyOccupancy = await GetHourlyOccupancyData(),
                 VehicleDistribution = await GetVehicleTypeDistribution()
             };
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BackupData(string backupPeriod, DateTime? startDate, DateTime? endDate, bool includeImages = true)
+        {
+            try
+            {
+                var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+                Directory.CreateDirectory(tempPath);
+                var backupPath = Path.Combine(tempPath, "backup");
+                Directory.CreateDirectory(backupPath);
+
+                // Determine date range
+                DateTime rangeStart, rangeEnd;
+                switch (backupPeriod)
+                {
+                    case "daily":
+                        rangeStart = DateTime.Today;
+                        rangeEnd = DateTime.Today.AddDays(1).AddSeconds(-1);
+                        break;
+                    case "monthly":
+                        rangeStart = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+                        rangeEnd = rangeStart.AddMonths(1).AddSeconds(-1);
+                        break;
+                    case "custom":
+                        if (!startDate.HasValue || !endDate.HasValue)
+                            return BadRequest("Invalid date range");
+                        rangeStart = startDate.Value.Date;
+                        rangeEnd = endDate.Value.Date.AddDays(1).AddSeconds(-1);
+                        break;
+                    default:
+                        return BadRequest("Invalid backup period");
+                }
+
+                // Get data within date range
+                var vehicles = await _context.Vehicles
+                    .Where(v => v.EntryTime >= rangeStart && v.EntryTime <= rangeEnd)
+                    .ToListAsync();
+
+                var transactions = await _context.ParkingTransactions
+                    .Where(t => t.EntryTime >= rangeStart && t.EntryTime <= rangeEnd)
+                    .ToListAsync();
+
+                var tickets = await _context.ParkingTickets
+                    .Where(t => t.IssueTime >= rangeStart && t.IssueTime <= rangeEnd)
+                    .ToListAsync();
+
+                // Create backup data object
+                var backupData = new
+                {
+                    BackupDate = DateTime.Now,
+                    DateRange = new { Start = rangeStart, End = rangeEnd },
+                    Vehicles = vehicles,
+                    Transactions = transactions,
+                    Tickets = tickets
+                };
+
+                // Save data to JSON
+                var jsonPath = Path.Combine(backupPath, "data.json");
+                await System.IO.File.WriteAllTextAsync(jsonPath, JsonSerializer.Serialize(backupData, new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                }));
+
+                // Copy images if requested
+                if (includeImages)
+                {
+                    var imagesPath = Path.Combine(backupPath, "images");
+                    Directory.CreateDirectory(imagesPath);
+
+                    // Copy entry photos
+                    foreach (var vehicle in vehicles.Where(v => !string.IsNullOrEmpty(v.EntryPhotoPath)))
+                    {
+                        var sourcePath = Path.Combine(_webHostEnvironment.WebRootPath, vehicle.EntryPhotoPath.TrimStart('/'));
+                        if (System.IO.File.Exists(sourcePath))
+                        {
+                            var destPath = Path.Combine(imagesPath, Path.GetFileName(vehicle.EntryPhotoPath));
+                            System.IO.File.Copy(sourcePath, destPath, true);
+                        }
+                    }
+
+                    // Copy exit photos
+                    foreach (var vehicle in vehicles.Where(v => !string.IsNullOrEmpty(v.ExitPhotoPath)))
+                    {
+                        var sourcePath = Path.Combine(_webHostEnvironment.WebRootPath, vehicle.ExitPhotoPath.TrimStart('/'));
+                        if (System.IO.File.Exists(sourcePath))
+                        {
+                            var destPath = Path.Combine(imagesPath, Path.GetFileName(vehicle.ExitPhotoPath));
+                            System.IO.File.Copy(sourcePath, destPath, true);
+                        }
+                    }
+
+                    // Copy barcode images
+                    foreach (var ticket in tickets.Where(t => !string.IsNullOrEmpty(t.BarcodeImagePath)))
+                    {
+                        var sourcePath = Path.Combine(_webHostEnvironment.WebRootPath, ticket.BarcodeImagePath.TrimStart('/'));
+                        if (System.IO.File.Exists(sourcePath))
+                        {
+                            var destPath = Path.Combine(imagesPath, Path.GetFileName(ticket.BarcodeImagePath));
+                            System.IO.File.Copy(sourcePath, destPath, true);
+                        }
+                    }
+                }
+
+                // Create ZIP file
+                var zipPath = Path.Combine(tempPath, $"backup_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
+                ZipFile.CreateFromDirectory(backupPath, zipPath);
+
+                // Read ZIP file
+                var zipBytes = await System.IO.File.ReadAllBytesAsync(zipPath);
+
+                // Cleanup
+                Directory.Delete(tempPath, true);
+
+                return File(zipBytes, "application/zip", Path.GetFileName(zipPath));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during backup");
+                return StatusCode(500, new { success = false, message = "Gagal melakukan backup: " + ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RestoreData(IFormFile backupFile, bool overwriteExisting = false)
+        {
+            try
+            {
+                if (backupFile == null || backupFile.Length == 0)
+                {
+                    return BadRequest(new { success = false, message = "File backup tidak valid" });
+                }
+
+                if (!backupFile.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { success = false, message = "File harus berformat ZIP" });
+                }
+
+                var tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+                Directory.CreateDirectory(tempPath);
+
+                try
+                {
+                    using (var stream = new FileStream(Path.Combine(tempPath, backupFile.FileName), FileMode.Create))
+                    {
+                        await backupFile.CopyToAsync(stream);
+                    }
+
+                    System.IO.Compression.ZipFile.ExtractToDirectory(
+                        Path.Combine(tempPath, backupFile.FileName),
+                        tempPath,
+                        overwriteExisting);
+
+                    var jsonContent = await System.IO.File.ReadAllTextAsync(Path.Combine(tempPath, "data.json"));
+                    var backupData = JsonSerializer.Deserialize<BackupData>(jsonContent);
+
+                    if (backupData == null)
+                    {
+                        throw new Exception("Data backup tidak valid");
+                    }
+
+                    using var transaction = await _context.Database.BeginTransactionAsync();
+                    try
+                    {
+                        // Restore vehicles
+                        foreach (var vehicle in backupData.Vehicles)
+                        {
+                            var existingVehicle = await _context.Vehicles
+                                .FirstOrDefaultAsync(v => v.VehicleNumber == vehicle.VehicleNumber);
+
+                            if (existingVehicle == null)
+                            {
+                                await _context.Vehicles.AddAsync(vehicle);
+                            }
+                            else if (overwriteExisting)
+                            {
+                                _context.Entry(existingVehicle).CurrentValues.SetValues(vehicle);
+                            }
+                        }
+
+                        // Restore transactions
+                        foreach (var parkingTransaction in backupData.Transactions)
+                        {
+                            var existingTransaction = await _context.ParkingTransactions
+                                .FirstOrDefaultAsync(t => t.TransactionNumber == parkingTransaction.TransactionNumber);
+
+                            if (existingTransaction == null)
+                            {
+                                await _context.ParkingTransactions.AddAsync(parkingTransaction);
+                            }
+                            else if (overwriteExisting)
+                            {
+                                _context.Entry(existingTransaction).CurrentValues.SetValues(parkingTransaction);
+                            }
+                        }
+
+                        // Restore tickets with correct property name
+                        foreach (var ticket in backupData.Tickets)
+                        {
+                            var existingTicket = await _context.ParkingTickets
+                                .FirstOrDefaultAsync(t => t.TicketNumber == ticket.TicketNumber);
+
+                            if (existingTicket == null)
+                            {
+                                await _context.ParkingTickets.AddAsync(ticket);
+                            }
+                            else if (overwriteExisting)
+                            {
+                                _context.Entry(existingTicket).CurrentValues.SetValues(ticket);
+                            }
+                        }
+
+                        await _context.SaveChangesAsync();
+                        await transaction.CommitAsync();
+
+                        return Json(new { success = true, message = "Data berhasil dipulihkan" });
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        throw new Exception($"Gagal memulihkan data: {ex.Message}");
+                    }
+                }
+                finally
+                {
+                    // Cleanup temporary files
+                    if (Directory.Exists(tempPath))
+                    {
+                        Directory.Delete(tempPath, true);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error restoring data");
+                return StatusCode(500, new { success = false, message = $"Gagal memulihkan data: {ex.Message}" });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ClearData(string[] clearOptions, string clearPeriod, DateTime? clearBeforeDate)
+        {
+            try
+            {
+                if (clearOptions == null || clearOptions.Length == 0)
+                    return BadRequest(new { success = false, message = "Pilih minimal satu jenis data yang akan dihapus" });
+
+                DateTime cutoffDate;
+                switch (clearPeriod)
+                {
+                    case "all":
+                        cutoffDate = DateTime.MaxValue;
+                        break;
+                    case "older_than_month":
+                        cutoffDate = DateTime.Today.AddMonths(-1);
+                        break;
+                    case "older_than_3months":
+                        cutoffDate = DateTime.Today.AddMonths(-3);
+                        break;
+                    case "older_than_6months":
+                        cutoffDate = DateTime.Today.AddMonths(-6);
+                        break;
+                    case "older_than_year":
+                        cutoffDate = DateTime.Today.AddYears(-1);
+                        break;
+                    case "custom":
+                        if (!clearBeforeDate.HasValue)
+                            return BadRequest(new { success = false, message = "Tanggal harus diisi untuk periode kustom" });
+                        cutoffDate = clearBeforeDate.Value;
+                        break;
+                    default:
+                        return BadRequest(new { success = false, message = "Periode tidak valid" });
+                }
+
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    int deletedTransactions = 0;
+                    int deletedVehicles = 0;
+                    int deletedTickets = 0;
+                    int deletedImages = 0;
+
+                    // Delete transactions
+                    if (clearOptions.Contains("transactions"))
+                    {
+                        var transactions = await _context.ParkingTransactions
+                            .Where(t => clearPeriod == "all" || t.EntryTime < cutoffDate)
+                            .ToListAsync();
+                        _context.ParkingTransactions.RemoveRange(transactions);
+                        deletedTransactions = transactions.Count;
+                    }
+
+                    // Delete vehicles
+                    if (clearOptions.Contains("vehicles"))
+                    {
+                        var vehicles = await _context.Vehicles
+                            .Where(v => clearPeriod == "all" || v.EntryTime < cutoffDate)
+                            .ToListAsync();
+                        _context.Vehicles.RemoveRange(vehicles);
+                        deletedVehicles = vehicles.Count;
+                    }
+
+                    // Delete tickets
+                    if (clearOptions.Contains("tickets"))
+                    {
+                        var tickets = await _context.ParkingTickets
+                            .Where(t => clearPeriod == "all" || t.IssueTime < cutoffDate)
+                            .ToListAsync();
+                        _context.ParkingTickets.RemoveRange(tickets);
+                        deletedTickets = tickets.Count;
+                    }
+
+                    // Delete images
+                    if (clearOptions.Contains("images"))
+                    {
+                        var imagesToDelete = new List<string>();
+
+                        // Get entry photos
+                        if (clearOptions.Contains("vehicles"))
+                        {
+                            var vehicleImages = await _context.Vehicles
+                                .Where(v => clearPeriod == "all" || v.EntryTime < cutoffDate)
+                                .Select(v => new { v.EntryPhotoPath, v.ExitPhotoPath })
+                                .ToListAsync();
+
+                            imagesToDelete.AddRange(
+                                vehicleImages
+                                    .Where(v => !string.IsNullOrEmpty(v.EntryPhotoPath))
+                                    .Select(v => v.EntryPhotoPath!)
+                            );
+                            imagesToDelete.AddRange(
+                                vehicleImages
+                                    .Where(v => !string.IsNullOrEmpty(v.ExitPhotoPath))
+                                    .Select(v => v.ExitPhotoPath!)
+                            );
+                        }
+
+                        // Get ticket barcodes
+                        if (clearOptions.Contains("tickets"))
+                        {
+                            var ticketImages = await _context.ParkingTickets
+                                .Where(t => clearPeriod == "all" || t.IssueTime < cutoffDate)
+                                .Select(t => t.BarcodeImagePath)
+                                .Where(path => !string.IsNullOrEmpty(path))
+                                .ToListAsync();
+
+                            imagesToDelete.AddRange(ticketImages!);
+                        }
+
+                        // Delete physical image files
+                        foreach (var imagePath in imagesToDelete)
+                        {
+                            var fullPath = Path.Combine(_webHostEnvironment.WebRootPath, imagePath.TrimStart('/'));
+                            if (System.IO.File.Exists(fullPath))
+                            {
+                                System.IO.File.Delete(fullPath);
+                                deletedImages++;
+                            }
+                        }
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    // Build success message
+                    var deletedItems = new List<string>();
+                    if (deletedTransactions > 0) deletedItems.Add($"{deletedTransactions} transaksi");
+                    if (deletedVehicles > 0) deletedItems.Add($"{deletedVehicles} data kendaraan");
+                    if (deletedTickets > 0) deletedItems.Add($"{deletedTickets} tiket");
+                    if (deletedImages > 0) deletedItems.Add($"{deletedImages} foto");
+
+                    var message = deletedItems.Count > 0
+                        ? $"Berhasil menghapus {string.Join(", ", deletedItems)}"
+                        : "Tidak ada data yang dihapus";
+
+                    return Json(new { success = true, message = message });
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    throw new Exception("Gagal menghapus data: " + ex.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error clearing data");
+                return StatusCode(500, new { success = false, message = "Gagal menghapus data: " + ex.Message });
+            }
+        }
+
+        [Authorize]
+        public IActionResult LiveDashboard()
+        {
+            return View();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetDashboardStats()
+        {
+            try
+            {
+                var activeVehicles = await _context.Vehicles.CountAsync(v => v.IsParked);
+                var totalSpaces = await _context.ParkingSpaces.CountAsync();
+                var availableSpaces = totalSpaces - activeVehicles;
+
+                var today = DateTime.Today;
+                var todayTransactions = await _context.ParkingTransactions
+                    .Where(t => t.EntryTime.Date == today)
+                    .ToListAsync();
+
+                var todayRevenue = todayTransactions.Sum(t => t.TotalAmount);
+                var todayTransactionCount = todayTransactions.Count;
+
+                return Json(new
+                {
+                    success = true,
+                    activeVehicles,
+                    availableSpaces,
+                    todayTransactions = todayTransactionCount,
+                    todayRevenue
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting dashboard stats");
+                return StatusCode(500, new { success = false, message = "Gagal mengambil statistik dashboard" });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetRecentEntries()
+        {
+            try
+            {
+                var recentEntries = await _context.Vehicles
+                    .Where(v => v.IsParked)
+                    .OrderByDescending(v => v.EntryTime)
+                    .Take(5)
+                    .Select(v => new
+                    {
+                        timestamp = v.EntryTime.ToString("dd/MM/yyyy HH:mm"),
+                        vehicleNumber = v.VehicleNumber,
+                        vehicleType = v.VehicleType
+                    })
+                    .ToListAsync();
+
+                return Json(recentEntries);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting recent entries");
+                return StatusCode(500, new { success = false, message = "Gagal memuat data kendaraan masuk terbaru" });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetRecentExits()
+        {
+            try
+            {
+                var recentExits = await _context.ParkingTransactions
+                    .Where(t => t.ExitTime != default(DateTime))
+                    .OrderByDescending(t => t.ExitTime)
+                    .Take(5)
+                    .Select(t => new
+                    {
+                        exitTime = t.ExitTime.ToString("dd/MM/yyyy HH:mm"),
+                        vehicleNumber = t.Vehicle.VehicleNumber,
+                        duration = CalculateDuration(t.EntryTime, t.ExitTime),
+                        totalAmount = t.TotalAmount
+                    })
+                    .ToListAsync();
+
+                return Json(recentExits);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting recent exits");
+                return StatusCode(500, new { success = false, message = "Gagal memuat data kendaraan keluar terbaru" });
+            }
+        }
+
+        private string CalculateDuration(DateTime start, DateTime end)
+        {
+            var duration = end - start;
+            var hours = Math.Floor(duration.TotalHours);
+            var minutes = duration.Minutes;
+
+            if (hours > 0)
+            {
+                return $"{hours} jam {minutes} menit";
+            }
+            return $"{minutes} menit";
         }
     }
 
