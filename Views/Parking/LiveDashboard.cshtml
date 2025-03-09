@@ -1,39 +1,101 @@
+@model ParkIRC.ViewModels.LiveDashboardViewModel
 @{
     ViewData["Title"] = "Live Dashboard";
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/live-dashboard.css" />
+    <style>
+        .action-card {
+            transition: all 0.3s ease;
+        }
+        .action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .recent-activity {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .stats-card {
+            border-left: 4px solid;
+        }
+        .stats-card.primary { border-color: #4e73df; }
+        .stats-card.success { border-color: #1cc88a; }
+        .stats-card.warning { border-color: #f6c23e; }
+        .stats-card.danger { border-color: #e74a3b; }
+    </style>
 }
 
-<div class="container-fluid">
-    <!-- Header Stats -->
+<div class="container-fluid mt-4">
+    <!-- Quick Actions -->
     <div class="row mb-4">
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-left-primary shadow h-100 py-2">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Kendaraan Aktif</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="activeVehicles">0</div>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="action-card card h-100 bg-success text-white">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-car-side fa-3x mb-3"></i>
+                                    <h5>Kendaraan Masuk</h5>
+                                    <button class="btn btn-light mt-2" onclick="showVehicleEntryModal()">
+                                        <i class="fas fa-plus"></i> Catat Masuk
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-car fa-2x text-gray-300"></i>
+                        <div class="col-md-3">
+                            <div class="action-card card h-100 bg-danger text-white">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-car fa-3x mb-3"></i>
+                                    <h5>Kendaraan Keluar</h5>
+                                    <button class="btn btn-light mt-2" onclick="showVehicleExitModal()">
+                                        <i class="fas fa-minus"></i> Catat Keluar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="action-card card h-100 bg-info text-white">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-history fa-3x mb-3"></i>
+                                    <h5>Riwayat</h5>
+                                    <button class="btn btn-light mt-2" onclick="showHistoryModal()">
+                                        <i class="fas fa-search"></i> Lihat Riwayat
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="action-card card h-100 bg-warning text-white">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-print fa-3x mb-3"></i>
+                                    <h5>Cetak Laporan</h5>
+                                    <button class="btn btn-light mt-2" onclick="showReportModal()">
+                                        <i class="fas fa-file-pdf"></i> Cetak
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-left-success shadow h-100 py-2">
+    <!-- Stats Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card stats-card primary h-100">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Slot Tersedia</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="availableSlots">0</div>
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h6 class="text-primary mb-2">Total Spaces</h6>
+                            <h2 class="mb-0 total-spaces">@Model.TotalSpaces</h2>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-parking fa-2x text-gray-300"></i>
@@ -42,32 +104,43 @@
                 </div>
             </div>
         </div>
-
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-left-info shadow h-100 py-2">
+        <div class="col-md-3">
+            <div class="card stats-card success h-100">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Transaksi Hari Ini</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="todayTransactions">0</div>
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h6 class="text-success mb-2">Available</h6>
+                            <h2 class="mb-0 available-spaces">@Model.AvailableSpaces</h2>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-receipt fa-2x text-gray-300"></i>
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-left-warning shadow h-100 py-2">
+        <div class="col-md-3">
+            <div class="card stats-card warning h-100">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                Pendapatan Hari Ini</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="todayRevenue">Rp 0</div>
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h6 class="text-warning mb-2">Occupied</h6>
+                            <h2 class="mb-0 occupied-spaces">@Model.OccupiedSpaces</h2>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-car fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card danger h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h6 class="text-danger mb-2">Today's Revenue</h6>
+                            <h2 class="mb-0 today-revenue">Rp @Model.TodayRevenue.ToString("N0")</h2>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-money-bill-wave fa-2x text-gray-300"></i>
@@ -78,157 +151,120 @@
         </div>
     </div>
 
-    <!-- Main Content -->
     <div class="row">
-        <!-- Vehicle Entry Section -->
-        <div class="col-lg-6">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-sign-in-alt me-2"></i>Kendaraan Masuk
-                    </h6>
-                    <div class="d-flex align-items-center">
-                        <div class="form-check form-switch me-3">
-                            <input class="form-check-input" type="checkbox" id="autoEntrySwitch" checked>
-                            <label class="form-check-label" for="autoEntrySwitch">Auto Capture</label>
-                        </div>
+        <!-- Recent Activities -->
+        <div class="col-md-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Activities</h5>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-primary active" onclick="filterActivities('all')">All</button>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="filterActivities('entry')">Entry</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="filterActivities('exit')">Exit</button>
                     </div>
                 </div>
-                <div class="card-body">
-                    <!-- Live Camera Feed -->
-                    <div class="camera-container mb-3">
-                        <video id="entryCamera" autoplay playsinline style="width: 100%;"></video>
-                        <canvas id="entryCanvas" style="display: none;"></canvas>
-                        <div id="entryCameraOverlay" class="camera-overlay">
-                            <div class="roi-box">
-                                <div class="roi-handle top-left"></div>
-                                <div class="roi-handle top-right"></div>
-                                <div class="roi-handle bottom-left"></div>
-                                <div class="roi-handle bottom-right"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Entry Form -->
-                    <form id="entryForm" class="mb-3">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="vehicleNumber" class="form-label">Nomor Kendaraan</label>
-                                    <input type="text" class="form-control" id="vehicleNumber" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="vehicleType" class="form-label">Jenis Kendaraan</label>
-                                    <select class="form-select" id="vehicleType" required>
-                                        <option value="">Pilih Jenis</option>
-                                        <option value="Motorcycle">Motor</option>
-                                        <option value="Car">Mobil</option>
-                                        <option value="Truck">Truk</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-print me-2"></i>Cetak Karcis
-                            </button>
-                        </div>
-                    </form>
-
-                    <!-- Recent Entries Table -->
+                <div class="card-body recent-activity">
                     <div class="table-responsive">
-                        <table class="table table-bordered" id="recentEntriesTable">
+                        <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>Waktu</th>
-                                    <th>No. Kendaraan</th>
-                                    <th>Jenis</th>
+                                    <th>Time</th>
+                                    <th>Vehicle</th>
+                                    <th>Type</th>
                                     <th>Status</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
-                            <tbody id="recentEntriesBody">
+                            <tbody id="activityTableBody">
+                                @foreach (var activity in Model.RecentActivities)
+                                {
+                                    <tr>
+                                        <td>@activity.EntryTime.ToString("HH:mm")</td>
+                                        <td>@activity.Vehicle?.VehicleNumber</td>
+                                        <td>@activity.Vehicle?.VehicleType</td>
+                                        <td>
+                                            @if (activity.ExitTime != default(DateTime))
+                                            {
+                                                <span class="badge bg-danger">Exit</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">Entry</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-info" onclick="viewDetails('@activity.Vehicle?.VehicleNumber')">
+                                                <i class="fas fa-info-circle"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
                             </tbody>
                         </table>
+                    </div>
+                    
+                    @{
+                        var prevDisabled = !Model.HasPreviousPage ? "disabled" : "";
+                        var nextDisabled = !Model.HasNextPage ? "disabled" : "";
+                    }
+
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="text-muted">
+                            Showing @(((Model.CurrentPage - 1) * Model.PageSize) + 1) to @(Math.Min(Model.CurrentPage * Model.PageSize, Model.RecentActivities.TotalItems)) 
+                            of @Model.RecentActivities.TotalItems entries
+                        </div>
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination mb-0">
+                                <li class="page-item @prevDisabled">
+                                    <a class="page-link" href="@Url.Action("LiveDashboard", new { pageNumber = Model.CurrentPage - 1 })" 
+                                       tabindex="-1" aria-disabled="@(Model.HasPreviousPage ? "false" : "true")">Previous</a>
+                                </li>
+                                @for (int i = 1; i <= Model.TotalPages; i++)
+                                {
+                                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                        <a class="page-link" href="@Url.Action("LiveDashboard", new { pageNumber = i })">@i</a>
+                                    </li>
+                                }
+                                <li class="page-item @nextDisabled">
+                                    <a class="page-link" href="@Url.Action("LiveDashboard", new { pageNumber = Model.CurrentPage + 1 })"
+                                       aria-disabled="@(Model.HasNextPage ? "false" : "true")">Next</a>
+                                </li>
+                            </ul>
+                        </nav>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Vehicle Exit Section -->
-        <div class="col-lg-6">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-sign-out-alt me-2"></i>Kendaraan Keluar
-                    </h6>
-                    <div class="d-flex align-items-center">
-                        <div class="form-check form-switch me-3">
-                            <input class="form-check-input" type="checkbox" id="autoExitSwitch" checked>
-                            <label class="form-check-label" for="autoExitSwitch">Auto Process</label>
-                        </div>
-                    </div>
+        <!-- Vehicle Distribution -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Vehicle Distribution</h5>
                 </div>
                 <div class="card-body">
-                    <!-- Barcode Scanner -->
-                    <div id="interactive" class="viewport mb-3">
-                        <video id="exitCamera" style="width: 100%;"></video>
-                        <canvas id="exitCanvas" class="drawingBuffer" style="display:none;"></canvas>
-                    </div>
-
-                    <!-- Scanner Controls -->
-                    <div class="d-flex justify-content-center gap-2 mb-3">
-                        <button class="btn btn-primary" id="startScanButton">
-                            <i class="fas fa-play me-2"></i>Mulai Scan
-                        </button>
-                        <button class="btn btn-danger" id="stopScanButton" style="display:none">
-                            <i class="fas fa-stop me-2"></i>Stop Scan
-                        </button>
-                        <button class="btn btn-secondary" id="switchCameraButton">
-                            <i class="fas fa-sync me-2"></i>Ganti Kamera
-                        </button>
-                    </div>
-
-                    <!-- Exit Details -->
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <h6 class="mb-0">Detail Parkir</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p class="mb-1"><strong>Waktu Masuk:</strong></p>
-                                    <p id="entryTime">--:--</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p class="mb-1"><strong>Durasi:</strong></p>
-                                    <p id="duration">-- jam -- menit</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p class="mb-1"><strong>Tarif:</strong></p>
-                                    <p id="rate">Rp --/jam</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p class="mb-1"><strong>Total:</strong></p>
-                                    <p id="totalAmount">Rp --</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Exits Table -->
-                    <div class="table-responsive">
-                        <table class="table table-bordered" id="recentExitsTable">
+                    <canvas id="vehicleDistributionChart"></canvas>
+                    <div class="table-responsive mt-3">
+                        <table class="table table-sm">
                             <thead>
                                 <tr>
-                                    <th>Waktu Keluar</th>
-                                    <th>No. Kendaraan</th>
-                                    <th>Durasi</th>
-                                    <th>Total</th>
+                                    <th>Type</th>
+                                    <th>Count</th>
+                                    <th>%</th>
                                 </tr>
                             </thead>
-                            <tbody id="recentExitsBody">
+                            <tbody>
+                                @foreach (var item in Model.VehicleDistribution)
+                                {
+                                    var percentage = Model.OccupiedSpaces > 0 
+                                        ? (item.Count * 100.0 / Model.OccupiedSpaces).ToString("N1") 
+                                        : "0";
+                                    <tr>
+                                        <td>@item.VehicleType</td>
+                                        <td>@item.Count</td>
+                                        <td>@percentage%</td>
+                                    </tr>
+                                }
                             </tbody>
                         </table>
                     </div>
@@ -238,28 +274,157 @@
     </div>
 </div>
 
-<!-- Print Modal -->
-<div class="modal fade" id="ticketModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Karcis Parkir</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="ticketContent">
-                <!-- Ticket content will be inserted here -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
-                <button type="button" class="btn btn-primary" id="printTicket">
-                    <i class="fas fa-print me-2"></i>Cetak
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Modals -->
+<partial name="_VehicleEntryModal" />
+<partial name="_VehicleExitModal" />
+<partial name="_HistoryModal" />
+<partial name="_ReportModal" />
 
 @section Scripts {
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="~/js/live-dashboard.js"></script>
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // SignalR Connection
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/parkingHub")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.start().catch(err => console.error(err));
+
+        // Handle real-time updates
+        connection.on("UpdateDashboard", (data) => {
+            updateStats(data);
+            updateVehicleDistribution(data.vehicleDistribution);
+        });
+
+        connection.on("UpdatePagedActivities", (data) => {
+            updateActivitiesTable(data.items);
+            updatePagination(data);
+        });
+
+        // Initialize Vehicle Distribution Chart
+        const ctx = document.getElementById('vehicleDistributionChart').getContext('2d');
+        const vehicleChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: @Json.Serialize(Model.VehicleDistribution.Select(x => x.VehicleType)),
+                datasets: [{
+                    data: @Json.Serialize(Model.VehicleDistribution.Select(x => x.Count)),
+                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // Functions for modal operations
+        function showVehicleEntryModal() {
+            $('#vehicleEntryModal').modal('show');
+        }
+
+        function showVehicleExitModal() {
+            $('#vehicleExitModal').modal('show');
+        }
+
+        function showHistoryModal() {
+            $('#historyModal').modal('show');
+            loadHistory();
+        }
+
+        function showReportModal() {
+            $('#reportModal').modal('show');
+        }
+
+        function viewDetails(vehicleNumber) {
+            // Implement vehicle details view
+            console.log('View details for:', vehicleNumber);
+        }
+
+        function filterActivities(type) {
+            // Implement activity filtering
+            console.log('Filter activities:', type);
+        }
+
+        // Update functions
+        function updateStats(data) {
+            document.querySelector('.total-spaces').textContent = data.totalSpaces;
+            document.querySelector('.available-spaces').textContent = data.availableSpaces;
+            document.querySelector('.occupied-spaces').textContent = data.occupiedSpaces;
+            document.querySelector('.today-revenue').textContent = `Rp ${data.todayRevenue.toLocaleString()}`;
+        }
+
+        function updateActivitiesTable(activities) {
+            const tbody = document.getElementById('activityTableBody');
+            tbody.innerHTML = activities.map(activity => `
+                <tr>
+                    <td>${activity.time}</td>
+                    <td>${activity.vehicleNumber}</td>
+                    <td>${activity.vehicleType}</td>
+                    <td>
+                        <span class="badge bg-${activity.status === 'Entry' ? 'success' : 'danger'}">
+                            ${activity.status}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="viewDetails('${activity.vehicleNumber}')">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updatePagination(data) {
+            const { currentPage, totalPages, totalItems, pageSize } = data;
+            const start = ((currentPage - 1) * pageSize) + 1;
+            const end = Math.min(currentPage * pageSize, totalItems);
+            
+            document.querySelector('.pagination-info').textContent = 
+                `Showing ${start} to ${end} of ${totalItems} entries`;
+
+            const pagination = document.querySelector('.pagination');
+            let html = `
+                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${currentPage - 1})" tabindex="-1">Previous</a>
+                </li>
+            `;
+
+            for (let i = 1; i <= totalPages; i++) {
+                html += `
+                    <li class="page-item ${i === currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                    </li>
+                `;
+            }
+
+            html += `
+                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Next</a>
+                </li>
+            `;
+
+            pagination.innerHTML = html;
+        }
+
+        function updateVehicleDistribution(distribution) {
+            vehicleChart.data.labels = distribution.map(d => d.type);
+            vehicleChart.data.datasets[0].data = distribution.map(d => d.count);
+            vehicleChart.update();
+        }
+
+        async function changePage(pageNumber) {
+            if (pageNumber < 1) return;
+            try {
+                await connection.invoke("GetPagedActivities", pageNumber);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Initial load of first page
+        changePage(1);
+    </script>
 } 

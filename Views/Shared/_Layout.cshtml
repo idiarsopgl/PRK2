@@ -34,7 +34,7 @@
                 <a href="@Url.Action("Dashboard","Parking")" class="geex-header__logo">
                     <img src="~/img/logo-dark.svg" alt="ParkIRC Logo" />
                 </a>
-                <span class="ms-3 fw-bold">Sistem Manajemen Parkir</span>
+                <span class="ms-3 fw-bold d-none d-md-inline">Sistem Manajemen Parkir</span>
             </div>
             
             <!-- Mobile menu toggle -->
@@ -45,11 +45,23 @@
             <nav class="geex-header__menu-wrapper">
                 <ul class="geex-header__menu">
                     <!-- Dashboard -->
-                    <li class="geex-header__menu__item">
-                        <a href="@Url.Action("Dashboard","Parking")" class="geex-header__menu__link">
+                    <li class="geex-header__menu__item has-children">
+                        <a href="#" class="geex-header__menu__link">
                             <i class="fas fa-tachometer-alt"></i>
                             <span>Dashboard</span>
                         </a>
+                        <ul class="geex-header__submenu">
+                            <li class="geex-header__menu__item">
+                                <a href="@Url.Action("Dashboard","Parking")" class="geex-header__menu__link">
+                                    <i class="fas fa-chart-pie"></i> Overview
+                                </a>
+                            </li>
+                            <li class="geex-header__menu__item">
+                                <a href="@Url.Action("LiveDashboard","Parking")" class="geex-header__menu__link">
+                                    <i class="fas fa-video"></i> Live Monitor
+                                </a>
+                            </li>
+                        </ul>
                     </li>
 
                     <!-- Kendaraan -->
@@ -129,47 +141,65 @@
                             <span>Tarif Parkir</span>
                         </a>
                     </li>
-
-                    <!-- Pengaturan -->
-                    <li class="geex-header__menu__item">
-                        <a href="@Url.Action("Settings","Parking")" class="geex-header__menu__link">
-                            <i class="fas fa-wrench"></i>
-                            <span>Pengaturan</span>
-                        </a>
-                    </li>
                 </ul>
             </nav>
 
-            <!-- User Info -->
-            <partial name="Partials/_LoginPartial" />
+            <!-- User Profile Menu -->
+            <div class="geex-header__right-side ms-auto">
+                <div class="geex-header__user-profile dropdown">
+                    <a href="#" class="dropdown-toggle geex-header__menu__link" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle"></i>
+                        <span class="d-none d-md-inline">@User.Identity?.Name</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="@Url.Action("Profile","Account")">
+                                <i class="fas fa-user me-2"></i> Profil
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="@Url.Action("ChangePassword","Account")">
+                                <i class="fas fa-key me-2"></i> Ganti Password
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })" method="post">
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="fas fa-sign-out-alt me-2"></i> Keluar
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </header>
 
     <main class="geex-main-content" id="mainContent">
-        <div class="geex-content">
-            @RenderBody()
-        </div>
+        @RenderBody()
     </main>
 
-    <!-- JAVASCRIPTS -->
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Bootstrap -->
+    <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- jQuery Validation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/4.0.0/jquery.validate.unobtrusive.min.js"></script>
-    <!-- SignalR -->
-    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
-    <!-- SweetAlert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
-    <!-- Custom scripts -->
+    <!-- Custom Scripts -->
     <script>
-        // Mobile menu toggle
+        // Mobile Menu Toggle
         document.querySelector('.geex-header__mobile-toggle').addEventListener('click', function() {
             document.querySelector('.geex-header__menu-wrapper').classList.toggle('active');
+            this.classList.toggle('active');
         });
+
+        // Handle submenu on mobile
+        if (window.innerWidth < 992) {
+            document.querySelectorAll('.geex-header__menu__item.has-children > a').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    this.parentElement.classList.toggle('active');
+                });
+            });
+        }
 
         // Close mobile menu when clicking outside
         document.addEventListener('click', function(event) {
@@ -178,6 +208,7 @@
             
             if (!menu.contains(event.target) && !toggle.contains(event.target)) {
                 menu.classList.remove('active');
+                toggle.classList.remove('active');
             }
         });
 

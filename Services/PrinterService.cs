@@ -31,20 +31,35 @@ namespace ParkIRC.Services
         public PrinterService(ILogger<PrinterService> logger)
         {
             _logger = logger;
-            _defaultPrinter = GetDefaultPrinter();
+            if (OperatingSystem.IsWindows())
+            {
+                _defaultPrinter = GetDefaultPrinter();
+            }
+            else
+            {
+                _defaultPrinter = string.Empty;
+                _logger.LogWarning("Printing is only supported on Windows");
+            }
         }
 
         public async Task<bool> PrintTicket(ParkingTicket ticket)
         {
+            if (!OperatingSystem.IsWindows())
+            {
+                _logger.LogWarning("Printing is only supported on Windows");
+                return false;
+            }
+
             try
             {
-                var pd = new PrintDocument();
-                pd.PrinterSettings.PrinterName = _defaultPrinter;
-
-                pd.PrintPage += (sender, e) =>
+                if (OperatingSystem.IsWindows())
                 {
-                    using (var font = new Font("Arial", 10))
+                    var pd = new PrintDocument();
+                    pd.PrinterSettings.PrinterName = _defaultPrinter;
+
+                    pd.PrintPage += (sender, e) =>
                     {
+                        using var font = new Font("Arial", 10);
                         float yPos = 10;
                         e.Graphics.DrawString("TIKET PARKIR", new Font("Arial", 12, FontStyle.Bold), Brushes.Black, 10, yPos);
                         yPos += 20;
@@ -62,21 +77,20 @@ namespace ParkIRC.Services
                         {
                             try
                             {
-                                using (var qrImage = Image.FromFile(ticket.BarcodeImagePath))
-                                {
-                                    e.Graphics.DrawImage(qrImage, 10, yPos, 100, 100);
-                                }
+                                using var qrImage = Image.FromFile(ticket.BarcodeImagePath);
+                                e.Graphics.DrawImage(qrImage, 10, yPos, 100, 100);
                             }
                             catch (Exception ex)
                             {
                                 _logger.LogError(ex, "Error printing QR code");
                             }
                         }
-                    }
-                };
+                    };
 
-                pd.Print();
-                return true;
+                    pd.Print();
+                    return true;
+                }
+                return false;
             }
             catch (Exception ex)
             {
@@ -87,15 +101,22 @@ namespace ParkIRC.Services
 
         public async Task<bool> PrintReceipt(ParkingTransaction transaction)
         {
+            if (!OperatingSystem.IsWindows())
+            {
+                _logger.LogWarning("Printing is only supported on Windows");
+                return false;
+            }
+
             try
             {
-                var pd = new PrintDocument();
-                pd.PrinterSettings.PrinterName = _defaultPrinter;
-
-                pd.PrintPage += (sender, e) =>
+                if (OperatingSystem.IsWindows())
                 {
-                    using (var font = new Font("Arial", 10))
+                    var pd = new PrintDocument();
+                    pd.PrinterSettings.PrinterName = _defaultPrinter;
+
+                    pd.PrintPage += (sender, e) =>
                     {
+                        using var font = new Font("Arial", 10);
                         float yPos = 10;
                         e.Graphics.DrawString("STRUK PARKIR", new Font("Arial", 12, FontStyle.Bold), Brushes.Black, 10, yPos);
                         yPos += 20;
@@ -112,11 +133,12 @@ namespace ParkIRC.Services
                         e.Graphics.DrawString($"Durasi: {(transaction.ExitTime - transaction.EntryTime):hh\\:mm}", font, Brushes.Black, 10, yPos);
                         yPos += 20;
                         e.Graphics.DrawString($"Total: Rp {transaction.TotalAmount:N0}", new Font("Arial", 10, FontStyle.Bold), Brushes.Black, 10, yPos);
-                    }
-                };
+                    };
 
-                pd.Print();
-                return true;
+                    pd.Print();
+                    return true;
+                }
+                return false;
             }
             catch (Exception ex)
             {
@@ -127,14 +149,24 @@ namespace ParkIRC.Services
 
         public bool CheckPrinterStatus()
         {
+            if (!OperatingSystem.IsWindows())
+            {
+                _logger.LogWarning("Printing is only supported on Windows");
+                return false;
+            }
+
             try
             {
-                var handle = CreateFile($"\\\\.\\{_defaultPrinter}", GENERIC_WRITE, 0, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
-                if (handle == IntPtr.Zero || handle.ToInt32() == -1)
+                if (OperatingSystem.IsWindows())
                 {
-                    return false;
+                    var handle = CreateFile($"\\\\.\\{_defaultPrinter}", GENERIC_WRITE, 0, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
+                    if (handle == IntPtr.Zero || handle.ToInt32() == -1)
+                    {
+                        return false;
+                    }
+                    return true;
                 }
-                return true;
+                return false;
             }
             catch (Exception ex)
             {
@@ -145,10 +177,20 @@ namespace ParkIRC.Services
 
         public string GetDefaultPrinter()
         {
+            if (!OperatingSystem.IsWindows())
+            {
+                _logger.LogWarning("Printing is only supported on Windows");
+                return string.Empty;
+            }
+
             try
             {
-                var ps = new PrinterSettings();
-                return ps.PrinterName;
+                if (OperatingSystem.IsWindows())
+                {
+                    var ps = new PrinterSettings();
+                    return ps.PrinterName;
+                }
+                return string.Empty;
             }
             catch (Exception ex)
             {
@@ -159,9 +201,19 @@ namespace ParkIRC.Services
 
         public List<string> GetAvailablePrinters()
         {
+            if (!OperatingSystem.IsWindows())
+            {
+                _logger.LogWarning("Printing is only supported on Windows");
+                return new List<string>();
+            }
+
             try
             {
-                return PrinterSettings.InstalledPrinters.Cast<string>().ToList();
+                if (OperatingSystem.IsWindows())
+                {
+                    return PrinterSettings.InstalledPrinters.Cast<string>().ToList();
+                }
+                return new List<string>();
             }
             catch (Exception ex)
             {
