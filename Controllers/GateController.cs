@@ -22,12 +22,18 @@ namespace ParkIRC.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly ILogger<GateController> _logger;
+        private readonly IPrinterService _printerService;
 
-        public GateController(ApplicationDbContext context, IWebHostEnvironment webHostEnvironment, ILogger<GateController> logger)
+        public GateController(
+            ApplicationDbContext context,
+            IWebHostEnvironment webHostEnvironment,
+            ILogger<GateController> logger,
+            IPrinterService printerService)
         {
             _context = context;
             _webHostEnvironment = webHostEnvironment;
             _logger = logger;
+            _printerService = printerService;
         }
 
         // GET: Gate/Entry
@@ -125,15 +131,23 @@ namespace ParkIRC.Controllers
                 await _context.ParkingTransactions.AddAsync(transaction);
                 await _context.SaveChangesAsync();
 
+                // Print ticket
+                bool printSuccess = await _printerService.PrintTicket(ticket);
+                if (!printSuccess)
+                {
+                    _logger.LogWarning("Failed to print ticket {TicketNumber}", ticket.TicketNumber);
+                }
+
                 // Open gate
                 await OpenGateAsync();
 
                 return Json(new { 
                     success = true, 
-                    message = "Kendaraan berhasil diproses",
+                    message = "Kendaraan berhasil diproses" + (!printSuccess ? " (Gagal mencetak tiket)" : ""),
                     ticketNumber = ticket.TicketNumber,
                     entryTime = vehicle.EntryTime,
-                    barcodeImageUrl = $"/images/barcodes/{Path.GetFileName(barcodeImagePath)}"
+                    barcodeImageUrl = $"/images/barcodes/{Path.GetFileName(barcodeImagePath)}",
+                    printStatus = printSuccess
                 });
             }
             catch (Exception ex)
@@ -211,16 +225,32 @@ namespace ParkIRC.Controllers
                 _context.Journals.Add(journal);
                 await _context.SaveChangesAsync();
 
-                // Open the gate (implement your gate control logic here)
+                // Create parking transaction
+                var transaction = await _context.ParkingTransactions
+                    .FirstOrDefaultAsync(t => t.VehicleId == vehicle.Id && t.Status == "Active");
+                if (transaction == null)
+                {
+                    return BadRequest(new { error = "Parking transaction not found" });
+                }
+
+                // Print receipt
+                bool printSuccess = await _printerService.PrintReceipt(transaction);
+                if (!printSuccess)
+                {
+                    _logger.LogWarning("Failed to print receipt for transaction {TransactionNumber}", transaction.TransactionNumber);
+                }
+
+                // Open the gate
                 await OpenGateAsync();
 
                 return Ok(new
                 {
-                    message = "Kendaraan berhasil keluar",
+                    message = "Kendaraan berhasil keluar" + (!printSuccess ? " (Gagal mencetak struk)" : ""),
                     vehicleNumber = vehicle.VehicleNumber,
                     entryTime = vehicle.EntryTime,
                     exitTime = vehicle.ExitTime,
-                    duration = (vehicle.ExitTime - vehicle.EntryTime)?.ToString(@"hh\:mm")
+                    duration = (vehicle.ExitTime - vehicle.EntryTime)?.ToString(@"hh\:mm"),
+                    printStatus = printSuccess
                 });
             }
             catch (Exception ex)

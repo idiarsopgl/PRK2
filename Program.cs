@@ -90,6 +90,9 @@ try
     // Add response caching
     builder.Services.AddResponseCaching();
 
+    // Add printer service
+    builder.Services.AddSingleton<IPrinterService, PrinterService>();
+
     var app = builder.Build();
 
     // Global error handler

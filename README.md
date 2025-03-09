@@ -48,6 +48,114 @@ ParkIRC adalah sistem manajemen parkir modern yang dibangun menggunakan .NET Cor
 2. Akses http://localhost:5126 atau https://localhost:5127
 3. Login menggunakan kredensial di atas
 
+## Pengaturan Kamera dan ROI
+
+### Konfigurasi Dasar
+Sistem menggunakan pengaturan kamera yang dapat disesuaikan untuk kondisi pencahayaan berbeda. File konfigurasi berada di `appsettings.json`:
+
+```json
+{
+  "CameraSettings": {
+    "Resolution": {
+      "Width": 1280,
+      "Height": 720
+    },
+    "ROI": {
+      "X": 0,
+      "Y": 0,
+      "Width": 640,
+      "Height": 480
+    }
+  }
+}
+```
+
+### Optimasi untuk Kondisi Pencahayaan Berbeda
+
+#### 1. Kondisi Pencahayaan Rendah (Malam/Indoor)
+```json
+{
+  "CameraSettings": {
+    "LowLight": {
+      "Exposure": 150,     // Nilai 100-200
+      "Gain": 2.0,        // Nilai 1.5-2.5
+      "Brightness": 60,    // Nilai 55-65
+      "Contrast": 55      // Nilai 50-60
+    }
+  }
+}
+```
+
+#### 2. Kondisi Pencahayaan Tinggi (Siang/Outdoor)
+```json
+{
+  "CameraSettings": {
+    "BrightLight": {
+      "Exposure": 50,      // Nilai 30-70
+      "Gain": 1.0,        // Nilai 1.0-1.2
+      "Brightness": 40,    // Nilai 35-45
+      "Contrast": 45      // Nilai 40-50
+    }
+  }
+}
+```
+
+### Tips Pengaturan ROI dengan Pencahayaan Berbeda
+
+1. **Kondisi Gelap**:
+   - Perbesar area ROI untuk menangkap lebih banyak cahaya
+   - Tingkatkan Exposure dan Gain
+   - Gunakan nilai Brightness yang lebih tinggi
+   - Pastikan ada pencahayaan tambahan di area scan
+
+2. **Kondisi Terang**:
+   - Area ROI bisa lebih kecil dan fokus
+   - Kurangi Exposure untuk menghindari overexposure
+   - Turunkan Gain untuk mengurangi noise
+   - Sesuaikan Contrast untuk ketajaman gambar
+
+3. **Optimasi Performa**:
+   - Mulai dengan area ROI yang kecil
+   - Sesuaikan ukuran ROI jika hasil tidak optimal
+   - Monitor CPU usage saat penyesuaian
+   - Test di berbagai kondisi pencahayaan
+
+### Troubleshooting
+
+1. **Gambar Terlalu Gelap**:
+   - Tingkatkan Exposure (+=50)
+   - Naikkan Brightness (+=10)
+   - Tambah Gain (+0.5)
+
+2. **Gambar Terlalu Terang**:
+   - Kurangi Exposure (-=50)
+   - Turunkan Brightness (-=10)
+   - Kurangi Gain (-0.5)
+
+3. **Gambar Blur**:
+   - Pastikan fokus kamera tepat
+   - Sesuaikan area ROI
+   - Tingkatkan Contrast
+   - Kurangi Gain
+
+4. **CPU Usage Tinggi**:
+   - Kecilkan area ROI
+   - Turunkan resolusi
+   - Kurangi framerate
+   - Monitor penggunaan memory
+
+### Rekomendasi Hardware
+- Kamera: Minimal 720p dengan manual focus
+- Processor: Intel i3/AMD Ryzen 3 atau lebih tinggi
+- RAM: Minimal 4GB
+- Storage: SSD direkomendasikan
+
+## Dokumentasi Lengkap
+Untuk panduan lengkap, silakan lihat:
+- [Manual Book](docs/ParkIRC-Manual.pdf)
+- [Quick Guide](docs/ParkIRC-Quick-Guide.pdf)
+- [Screenshot Guide](docs/screenshot-guide.md)
+
 ## Pengembangan
 
 ### Prerequisites
