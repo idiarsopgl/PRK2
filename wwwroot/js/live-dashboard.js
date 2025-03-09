@@ -54,37 +54,157 @@ document.getElementById('autoExitSwitch').addEventListener('change', function() 
 });
 
 // Initialize entry camera
+const maxRetries = 3;
+let retryCount = 0;
+let retryDelay = 1000; // Start with 1 second delay
+let isReconnecting = false;
+
 async function initializeEntryCamera() {
     try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-
-        if (videoDevices.length === 0) {
-            throw new Error('No camera found');
+        const video = document.getElementById('entryCamera');
+        if (!video) {
+            throw new Error('Camera element not found');
         }
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                deviceId: selectedEntryCameraId ? { exact: selectedEntryCameraId } : undefined,
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            }
-        });
+        // IP Camera Configuration
+        const ipCameraUrl = 'http://192.168.186.200:8000/stream';
+        console.log('Menghubungkan ke kamera IP:', ipCameraUrl);
 
-        const video = document.getElementById('entryCamera');
-        video.srcObject = stream;
-        entryCameraStream = stream;
+        if (Hls.isSupported()) {
+            const hls = new Hls({
+                debug: false,
+                enableWorker: true,
+                lowLatencyMode: true,
+                backBufferLength: 90
+            });
 
-        // Start motion detection
+            hls.loadSource(ipCameraUrl);
+            hls.attachMedia(video);
+
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                video.play().catch(e => {
+                    console.error('Error playing video:', e);
+                });
+                retryCount = 0;
+                retryDelay = 1000;
+                isReconnecting = false;
+            });
+
+            hls.on(Hls.Events.ERROR, function(event, data) {
+                if (data.fatal) {
+                    switch(data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            handleNetworkError(hls);
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            handleMediaError(hls);
+                            break;
+                        default:
+                            handleFatalError(hls);
+                            break;
+                    }
+                }
+            });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = ipCameraUrl;
+            video.addEventListener('loadedmetadata', function() {
+                video.play().catch(e => {
+                    console.error('Error playing video:', e);
+                    handleFatalError();
+                });
+            });
+        } else {
+            throw new Error('HLS tidak didukung oleh browser ini');
+        }
+
+        entryCameraStream = video.srcObject;
         startMotionDetection();
     } catch (error) {
-        console.error('Error accessing camera:', error);
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Gagal mengakses kamera: ' + error.message
-        });
+        console.error('Error mengakses kamera:', error);
+        showErrorAlert('Error', 'Gagal mengakses kamera: ' + error.message);
     }
+}
+
+function handleNetworkError(hls) {
+    if (!isReconnecting && retryCount < maxRetries) {
+        isReconnecting = true;
+        console.log(`Error jaringan, mencoba ulang ${retryCount + 1} dari ${maxRetries} dalam ${retryDelay/1000} detik...`);
+        
+        showReconnectingAlert(retryCount + 1);
+        
+        setTimeout(() => {
+            hls.startLoad();
+            retryCount++;
+            retryDelay *= 2; // Exponential backoff
+            isReconnecting = false;
+        }, retryDelay);
+    } else if (retryCount >= maxRetries) {
+        console.error('Batas maksimum percobaan tercapai');
+        showMaxRetriesAlert();
+        hls.destroy();
+    }
+}
+
+function handleMediaError(hls) {
+    console.log('Error media, mencoba memulihkan...');
+    showMediaErrorAlert();
+    hls.recoverMediaError();
+}
+
+function handleFatalError(hls) {
+    console.error('Error tidak dapat dipulihkan');
+    showFatalErrorAlert();
+    if (hls) hls.destroy();
+}
+
+function showReconnectingAlert(attempt) {
+    Swal.fire({
+        icon: 'warning',
+        title: 'Koneksi Terputus',
+        text: `Mencoba menghubungkan kembali ke kamera... (Percobaan ${attempt}/${maxRetries})`,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+    });
+}
+
+function showMaxRetriesAlert() {
+    Swal.fire({
+        icon: 'error',
+        title: 'Error Koneksi',
+        text: 'Gagal terhubung ke kamera setelah beberapa percobaan. Silakan periksa koneksi jaringan dan kamera.',
+        showConfirmButton: true
+    });
+}
+
+function showMediaErrorAlert() {
+    Swal.fire({
+        icon: 'warning',
+        title: 'Error Media',
+        text: 'Mencoba memulihkan stream kamera...',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+    });
+}
+
+function showFatalErrorAlert() {
+    Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Gagal terhubung ke kamera. Silakan periksa koneksi dan refresh halaman.',
+        showConfirmButton: true
+    });
+}
+
+function showErrorAlert(title, message) {
+    Swal.fire({
+        icon: 'error',
+        title: title,
+        text: message
+    });
 }
 
 // Initialize exit camera and barcode scanner
@@ -97,10 +217,10 @@ async function initializeExitCamera() {
             selectedExitCameraId = selectedExitCameraId || devices[0].id;
             await startScanning();
         } else {
-            throw new Error('No camera found');
+            throw new Error('Tidak ada kamera yang ditemukan');
         }
     } catch (error) {
-        console.error('Error initializing scanner:', error);
+        console.error('Error inisialisasi scanner:', error);
         Swal.fire({
             icon: 'error',
             title: 'Error',
@@ -391,4 +511,4 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update stats every minute
     setInterval(updateDashboardStats, 60000);
-}); 
+});
