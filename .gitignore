@@ -435,3 +435,36 @@ wwwroot/lib/
 wwwroot/uploads/
 wwwroot/images/vehicles/
 wwwroot/images/tickets/
+
+# .NET Core build folders
+bin/
+obj/
+
+# Visual Studio files
+.vs/
+*.ntvs*
+*.njsproj
+*.sln.iml
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# VS Code directories
+.vscode/
+
+# Windows Installer files
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# Windows shortcuts
+*.lnk

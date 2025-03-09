@@ -1,112 +1,99 @@
 # ParkIRC - Parking Management System
 
-A modern parking management system built with ASP.NET Core that helps manage parking spaces, vehicle entries/exits, shift scheduling, and payments.
+ParkIRC adalah sistem manajemen parkir modern yang dibangun menggunakan .NET Core 6.0. Sistem ini menyediakan solusi lengkap untuk mengelola area parkir, termasuk manajemen kendaraan, tiket parkir, dan laporan.
 
-## Features
+## Fitur Utama
 
-- User Authentication & Authorization
-  - Role-based access control (Admin, Operator)
-  - Secure password reset functionality
-  - User profile management
+- Manajemen Parkir Kendaraan
+- Sistem Tiket dengan QR Code
+- Manajemen Operator/Staff
+- Dashboard Real-time
+- Laporan dan Analitik
+- Sistem Multi-user dengan Role-based Access Control
 
-- Parking Management
-  - Automatic space assignment
-  - Vehicle entry/exit tracking
-  - Real-time space availability
-  - Payment processing
-  - Transaction history
+## Persyaratan Sistem
 
-- Shift Management
-  - Shift scheduling functionality
-
-- Dashboard
-  - Real-time occupancy status
-  - Revenue statistics
-  - Recent activities
-  - Space utilization metrics
-
-## Technology Stack
-
-- ASP.NET Core 6.0
-- Entity Framework Core
+- Windows 64-bit
+- .NET 6.0 Runtime
 - SQLite
-- Identity Framework
-- SweetAlert2
-- jQuery
-- Bootstrap 5 for UI
+- Port 5126 dan 5127 tersedia
+- Minimal RAM 4GB
+- Ruang disk minimal 500MB
 
-## Prerequisites
+## Instalasi
 
-- .NET 6.0 SDK
-- Visual Studio 2022 or VS Code
+### Menggunakan Installer
 
-## Getting Started
+1. Download file installer (.msi) dari [releases page](https://github.com/yourusername/ParkIRC/releases)
+2. Jalankan installer
+3. Ikuti langkah-langkah instalasi
+4. Aplikasi akan otomatis terbuka setelah instalasi selesai
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/ParkIRC.git
-```
+### Manual Installation
 
-2. Navigate to the project directory:
-```bash
-cd ParkIRC
-```
+1. Download file zip dari releases
+2. Extract ke folder yang diinginkan
+3. Jalankan `start.bat`
 
-3. Update the connection string in `appsettings.json`:
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Data Source=GeexParkingDB.db;"
-  }
-}
-```
+## Penggunaan
 
-4. Apply database migrations:
-```bash
-dotnet ef database update
-```
-
-5. Run the application:
-```bash
-dotnet run
-```
-
-6. Access the application:
-- HTTP: http://localhost:5126
-- HTTPS: https://localhost:5127
-
-## Default Admin Account
+### Login Default
 
 - Email: admin@parkingsystem.com
 - Password: Admin@123
 
-## Project Structure
+### Mengakses Aplikasi
 
-- `/src`: Source code
-- `/test`: Tests
-- `/docs`: Documentation
-- `/build`: Build artifacts
+1. Buka browser
+2. Akses http://localhost:5126 atau https://localhost:5127
+3. Login menggunakan kredensial di atas
 
-### Key Controllers
+## Pengembangan
 
-- `AuthController`: Manages user authentication and authorization.
-- `ParkingController`: Handles vehicle entry and exit tracking.
-- `ShiftController`: Manages shift scheduling functionality.
+### Prerequisites
 
-### Key Models
+- Visual Studio 2022
+- .NET 6.0 SDK
+- WiX Toolset v3.14.1 (untuk membuat installer)
 
-- `User`: Represents the user entity.
-- `ParkingSpace`: Represents a parking space in the system.
-- `Shift`: Represents a shift in the shift management system.
+### Build dari Source
 
-## Contributing
+1. Clone repository
+```bash
+git clone https://github.com/yourusername/ParkIRC.git
+```
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Buka solution di Visual Studio
+```bash
+cd ParkIRC
+start ParkIRC.sln
+```
 
-## License
+3. Restore packages
+```bash
+dotnet restore
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+4. Build project
+```bash
+dotnet build
+```
+
+5. Run aplikasi
+```bash
+dotnet run
+```
+
+## Kontribusi
+
+Silakan berkontribusi dengan membuat pull request. Untuk perubahan major, harap buka issue terlebih dahulu untuk mendiskusikan perubahan yang diinginkan.
+
+## Lisensi
+
+[MIT License](LICENSE)
+
+## Kontak
+
+- Email: your.email@example.com
+- Website: https://yourwebsite.com
+- Issue Tracker: https://github.com/yourusername/ParkIRC/issues
